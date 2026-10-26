@@ -5,9 +5,10 @@ Status: **PARTIAL (interim).** The Supabase half is proven. The AWS half (G1, G6
 profiles on the spike machine are throwaway accounts. Do not treat this as the final
 GO/NO-GO until G1 and G6 are recorded.
 
-Run date: 2026-10-26. Scratch Supabase project: `<project-ref>` (org `supabase-demo`,
+Run date: 2026-10-26. Scratch Supabase project: `<project-ref>` (a demo-org project,
 region us-west-2), CLI 2.105.0 plus `npx supabase@latest` for config push (see
-Surprises). All throwaway code lives outside the repo; only this report is kept.
+Surprises). All throwaway code lives outside the repo; only this report is kept. Proposed contract changes are in
+`CONTRACT_CHANGES.md`.
 
 ## 1. Verdict and chosen path (D1)
 
@@ -26,10 +27,10 @@ session) is already supported by everything below, because the flow itself works
 | G1 | **NOT RUN** (needs AWS) | The Supabase side of the flow works headlessly (see G2). Not yet exercised from AgentCore Identity. Open item: consent page must be hosted at Site URL + authorization path. |
 | G2 | **PASS** (Supabase side) | Delegated token accepted by PostgREST. `POST /rest/v1/rpc/whoami` with it returns `{"sub":"<user-uuid>","client_id":"<client-uuid>","is_agent":true}` (is_agent true once a grant row exists). Claims dump in section 3. Not yet via an AgentCore-held token. |
 | G3 | **PASS** | Same `PATCH notes?id=eq.<id>`: human gets 200 and the row changes; agent gets 200 with `[]` (0 rows) and the row is unchanged. The restrictive UPDATE policy denies **silently** (no 403). Agent SELECT of its user's own rows works. |
-| G4 | **PASS** | With the same unexpired token (3563 s left), after `update app.agent_grants set revoked_at = now()`: `whoami.is_agent` becomes false, SELECT returns `[]`, INSERT returns 403 (`notes_revoked_client_denied`). Human session unaffected. No PostgREST caching observed: the next call after the UPDATE already saw the revocation. |
+| G4 | **PASS** | With the same unexpired token (3563 s left), after `update app.agent_grants set revoked_at = now()`: `whoami.is_agent` becomes false, SELECT returns `[]`, INSERT returns 403 (`notes_revoked_client_denied`), and UPDATE still returns `[]`. Human session unaffected. Direct proof of the `is_agent()` hole in section 4. No PostgREST caching observed: the next call after the UPDATE already saw the revocation. |
 | G5 | **Recorded** | See section 5 below. |
 | G6 | **NOT RUN** (needs AWS) | Collected the inputs: first-party JWT is ES256, `aud = authenticated`, **no** `client_id`, issuer `https://<project-ref>.supabase.co/auth/v1`, JWKS at `/auth/v1/.well-known/jwks.json`. The delegated token has the **same `aud`**. Implication: if the AgentCore authorizer is configured with allowed clients (matching `client_id`), first-party tokens will be rejected. Use allowed audience only. To be confirmed on AgentCore. |
-| G7 | **NOT RUN** (needs AWS) | |
+| G7 | **NOT RUN** (needs AWS) | Supabase-side lower bound only (headless, consent remembered, us-west-2 from this laptop): authorize to token 412 ms, first PostgREST call 142 ms, total 554 ms. AgentCore, the vault, and a human clicking consent are not included. |
 
 GO criteria (G1-G4 + G6): G2, G3, G4 pass; G1, G6 pending.
 
@@ -60,7 +61,11 @@ First-party session JWT: same shape, `amr.method = "password"`, no `client_id`, 
 Custom access token hook (probe): runs for OAuth tokens. It receives
 `authentication_method = "oauth_provider/authorization_code"` and `claims.client_id`,
 and added claims appear in the token. Event keys: `claims, user_id, metadata,
-authentication_method`. **Untested:** altering `aud`.
+authentication_method`. **Altering `aud` works:** a hook that set `aud = "ar-copilot-agent"` when `client_id`
+is present produced tokens with that `aud`, and PostgREST still accepted them (whoami
+200). First-party tokens kept `aud = authenticated`. So `aud` can separate the two
+token kinds, and an inbound authorizer requiring `authenticated` would refuse an
+agent token presented as an inbound credential.
 
 ## 4. Proposed final section 4.1 (CONTRACT_CHANGES entry)
 
@@ -71,8 +76,9 @@ Proposal, not an edit to section 4.
   **Confirmed**, readable as `auth.jwt() ->> 'client_id'`. It is a **UUID** (the OAuth
   client's id), so `agent_grants.client_id` should be `uuid`.
 - `role`: `authenticated`. **Confirmed.**
-- `aud`: `authenticated` for **both** token kinds. The inbound authorizer cannot use `aud`
-  to tell them apart. Use `client_id` presence if you need to.
+- `aud`: `authenticated` for **both** token kinds by default. The custom access token hook
+  can set a different `aud` for tokens that carry `client_id` (verified), which would let
+  the inbound authorizer tell them apart. Decision for the humans.
 - New: `scope` (default `email` if none is requested), `amr[0].method`
   (`oauth_provider/authorization_code` for agent tokens), `session_id`.
 - Tenant stays out of the token. Nothing in the spike required it.
@@ -81,7 +87,9 @@ Proposal, not an edit to section 4.
 non-null AND an active grant) has a hole: after revocation, `is_agent()` is **false**
 while the token still carries `client_id`, so any policy written as
 `not app.is_agent()` would treat the revoked agent as a full human. Observed:
-`whoami.is_agent` flips to false on revoke. Proposed split:
+`whoami.is_agent` flips to false on revoke, and on a table with only the contract-literal
+policies (permissive owner policy plus restrictive UPDATE `not app.is_agent()`) the agent's
+UPDATE was denied while the grant was active and **succeeded after revoke**. Proposed split:
 
 - `app.client_id()` as today.
 - `app.is_agent()` = `client_id` is not null (an agent-originated request).
@@ -99,10 +107,12 @@ while the token still carries `client_id`, so any policy written as
   interval, 10 s default in `config.toml`).
 - Refresh token lifetime was not measured (no expiry observed).
 - Server-side revocation: user-scoped `supabase.auth.oauth.revokeGrant({clientId})` works.
-  After it, refresh returns 400, `/oauth/userinfo` returns 403, and consent is no longer
+  Clean run (no rotation in between, and also with a control refresh first): after it,
+  refresh returns 400 `refresh_token_not_found`, `/oauth/userinfo` returns 403, and consent is no longer
   remembered (a new authorize shows the consent page again). **An already-issued
-  access token still works at PostgREST until `exp`** (observed). The SDK has no
-  admin-by-user-id revoke for OAuth grants (admin OAuth API is client CRUD only).
+  access token still works at PostgREST until `exp`** (observed). In supabase-js 2.118 the admin OAuth API is client CRUD plus
+  `regenerateClientSecret` only (checked `GoTrueAdminOAuthApi`); there is no
+  admin-by-user-id grant revoke. A server-side revoke needs the user's session.
 - `revokeGrant` does **not** touch `app.agent_grants`. The "revoke agent" action must do
   both, or I6 only holds for the DB half.
 - Consent is remembered per (user, client): a second authorize returns the code
@@ -113,7 +123,11 @@ while the token still carries `client_id`, so any policy written as
 
 1. Create the project (`supabase projects create ... --org-id ... --region ...`), wait
    for ACTIVE_HEALTHY (config push 404s while COMING_UP).
-2. `supabase init`, `supabase link`. In `config.toml`: `[auth.oauth_server] enabled = true`,
+2. `supabase init`, `supabase link`. **Warning:** `config push` from a fresh `init` pushes
+   local defaults over the remote auth/storage settings. In this spike it flipped
+   `email.enable_confirmations` true to false, `max_frequency`, `otp_length`, `site_url`
+   (to `http://127.0.0.1:3000`), and storage analytics. Review the diff; for stage/arena
+   keep a reviewed `config.toml` and never push a bare default. In `config.toml`: `[auth.oauth_server] enabled = true`,
    `authorization_url_path = "/oauth/consent"`. **Push with a current CLI**
    (`npx supabase@latest config push`); 2.105.0 silently ignored the block.
 3. Verify: `GET /.well-known/oauth-authorization-server/auth/v1` returns metadata
@@ -136,17 +150,19 @@ while the token still carries `client_id`, so any policy written as
 1. **CLI 2.105.0 silently ignores `[auth.oauth_server]`** ("Remote Auth config is up to
    date") and the server stays disabled. Newer CLI pushes it. Pin a minimum CLI
    version in the README.
-2. **`is_agent()` hole on revoke** (section 4). Needs a contract change; pack 02 should
+2. **`config push` overwrites remote auth settings with local defaults** (email
+   confirmations turned off in the spike; security-relevant for stage and arena).
+3. **`is_agent()` hole on revoke** (section 4). Needs a contract change; pack 02 should
    key restrictive policies on `client_id`.
-3. **Denials are silent at the table level** (UPDATE returns 200 and `[]`). Consistent
+4. **Denials are silent at the table level** (UPDATE returns 200 and `[]`). Consistent
    with the section 4.4 envelope rule: RPCs should detect 0 rows and return a denial
    envelope; raw PostgREST must not be relied on to report it.
-4. **Two revocation switches** (OAuth grant vs `agent_grants`) and an access token
+5. **Two revocation switches** (OAuth grant vs `agent_grants`) and an access token
    that survives OAuth revocation until `exp`: the DB check is what makes I6 true.
-5. **Consent skipping** affects the live "Connect agent" beat and G7 timing (first
+6. **Consent skipping** affects the live "Connect agent" beat and G7 timing (first
    connect shows consent, later ones do not, unless the grant was revoked).
-6. `aud` is the same for human and agent tokens (see G6 note).
-7. Dashboard-only items I did not need: none so far. Dynamic client registration was
+7. `aud` is the same for human and agent tokens unless the hook changes it (see section 3).
+8. Dashboard-only items I did not need: none so far. Dynamic client registration was
    left disabled.
 
 ## 8. Not done / next
@@ -154,7 +170,7 @@ while the token still carries `client_id`, so any policy written as
 - AWS: AgentCore Runtime inbound authorizer (G6), AgentCore Identity custom OAuth2
   credential provider and 3LO (G1), end-to-end timing (G7). Blocked on an AWS
   sandbox account/profile/region.
-- Hosting for the consent page (needed for G1): must be publicly reachable by the
-  user's browser; I believe Supabase Edge Functions and Storage do not serve HTML
+- Consent page (pack step 1) is not built yet. It must be reachable by the **user's
+  browser** (not by AgentCore), so `localhost` or any static host works for the spike; I believe Supabase Edge Functions and Storage do not serve HTML
   as a web page (not verified in this spike), so plan separate hosting.
 - Fallbacks F1/F2 do not need to be chosen unless G1 or G6 fails.
