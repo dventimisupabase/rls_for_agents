@@ -138,4 +138,11 @@ Deno.test({ name: "MCP end to end with delegated tokens", ignore: !RUN, sanitize
     assertEquals((await rest(aliceAgent, "grant_agent", { client_id: crypto.randomUUID() })).reason, "human_only");
     assertEquals((await rest(aliceAgent, "revoke_agent", { client_id: clientId })).reason, "human_only");
   });
+
+  // Clean up: revoke the test grants and delete the throwaway OAuth client.
+  await rest(alice.token, "revoke_agent", { client_id: clientId });
+  await rest(bob.token, "revoke_agent", { client_id: clientId });
+  const del = await fetch(`${URL_}/auth/v1/admin/oauth/clients/${clientId}`,
+    { method: "DELETE", headers: { apikey: SERVICE, authorization: `Bearer ${SERVICE}` } });
+  await del.body?.cancel();
 });

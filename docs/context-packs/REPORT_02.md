@@ -2,24 +2,29 @@
 
 Owner: David. Branch: `feat/data-layer`. Started 2026-10-26.
 
-**Environment.** There is no stage project yet (the brief's target ref was a placeholder), so all
-work so far runs on the **local Supabase stack** (`supabase start`, CLI 2.122.0 pinned via
-`npx`, local ports shifted to 5532x because another local project holds 5432x). Tests are pgTAP via
-`scripts/test-db.sh`. Nothing has been pushed to a remote project. Stage numbers (S4 latency,
-S8 at full volume over the network, S9) are pending a stage project.
+**Environment.** Stage project `ar-copilot-stage` (org `supabase-demo`, us-west-2) was created on
+2026-10-26 and is linked as `[remotes.stage]` in `config.toml`. Development and the full test suites also
+run on the local stack (`supabase start`, CLI 2.122.0 pinned via `npx`, local ports 5532x because another
+local project holds 5432x). The stage database password and seed password live in `~/.ar-copilot/stage.env`
+(outside the repo).
+
+**Stage bring-up (reproducible):** `supabase link`; `supabase config diff` reviewed (see judgment call 18);
+`supabase config push` changed only the OAuth server settings; `supabase db push` applied all migrations;
+`psql <session pooler> -c "set app.seed_password = ..." -f supabase/seed/seed.sql` (2.5 s; the invoice digest
+`06564b28...` matches the local seed exactly); `supabase functions deploy mcp`.
 
 ## Status
 
 | ID | Criterion | Status | Evidence |
 |----|-----------|--------|----------|
-| S1 | All tools work for Alice; Bob's results are a strict subset | **PASS (local)** | pgTAP `02_rpc.test.sql` S1 block; over HTTP with real delegated tokens through the MCP function: `evidence/S1_S2_S4_mcp_http_local.txt` |
-| S2 | Agent restrictive actions return `denied` and the audit row survives | **PASS (local)** | pgTAP `02_rpc.test.sql` S2 block (audit rows asserted after the denial); denials returned as data over MCP |
-| S3 | `$500` live policy changes `send_dunning_email` with no code change; revert restores | **PASS (local)** | `03_live_policy_500.test.sql` (includes the exact stage files) |
-| S4 | Revocation denies the next call in under 1 s | **PASS (local)** | Over HTTP: `revoke_agent` then the agent's next MCP call is denied `agent_grant_revoked` **3.2 ms** after the revoke returned (local stack); stage re-run pending |
+| S1 | All tools work for Alice; Bob's results are a strict subset | **PASS (stage)** | pgTAP on stage (`evidence/pgtap_stage.txt`, 87/87); end to end over HTTP with real OAuth-minted delegated tokens through the deployed MCP function (`evidence/S1_S2_S4_mcp_http_stage.txt`) |
+| S2 | Agent restrictive actions return `denied` and the audit row survives | **PASS (stage)** | pgTAP S2 block on stage (audit rows asserted after each denial); denials returned as data over MCP on stage |
+| S3 | `$500` live policy changes `send_dunning_email` with no code change; revert restores | **PASS (stage)** | `03_live_policy_500.test.sql` on stage, inside a rolled-back transaction, using the exact `supabase/stage/*.sql` files |
+| S4 | Revocation denies the next call in under 1 s | **PASS (stage)** | `revoke_agent` returned in 61 ms; the agent's next MCP call was denied `agent_grant_revoked` **113 ms** later (laptop to us-west-2, `evidence/S1_S2_S4_mcp_http_stage.txt`). Local: 3.2 ms |
 | S5 | Provisioning under 2 s, idempotent, 200 concurrent | not started | |
 | S6 | Scorer detects a planted violation for each of I1 to I5 | not started | |
 | S7 | Eval harness, 200+ attempts, 0 violations, fooled rate | not started | |
-| S8 | Stage hot reads under 100 ms at full seed volume | **PASS (local)** | `evidence/S8_explain_local.txt`: slowest inner query 7.8 ms, slowest RPC end to end 6.9 ms (Alice), agent path within the same range; helpers evaluated as InitPlans/hashed SubPlans. Stage re-run pending |
+| S8 | Stage hot reads under 100 ms at full seed volume | **PASS (stage)** | `evidence/S8_explain_stage.txt`: DB execution at most 5.7 ms per hot query for Alice, Bob and Alice's agent; client round trips 34 to 44 ms from a laptop. Local: `evidence/S8_explain_local.txt` |
 | S9 | `reset-stage.sh` under 60 s, idempotent | not started | |
 
 ## Judgment calls
@@ -70,6 +75,13 @@ S8 at full volume over the network, S9) are pending a stage project.
     endpoints the consent page uses.
 16. **Live policy files are tested as-is.** `scripts/test-db.sh` copies `supabase/stage/*.sql` into the
     test folder (gitignored) because the test container mounts only `supabase/tests`.
+18. **Stage config is pushed only after a reviewed diff.** A fresh `config.toml` would have turned off
+    email confirmations and TOTP MFA, shortened OTPs, shrunk the pooler and changed the site URL on stage.
+    The base config now uses the hosted (safer) values, and `[remotes.stage]` pins the environment-specific
+    ones, so the reviewed diff contained only the OAuth server settings and `password_requirements`
+    (empty locally, unset remotely; equivalent).
+19. **pgTAP on stage uses the session pooler** (`scripts/test-db.sh --db-url ...`): the direct host is
+    IPv6-only and the test container has no IPv6 route. Every test runs in a rolled-back transaction.
 17. **S6 test project.** Until a dedicated test project exists, the scorer's planted-violation tests run on
     the local stack, which is disposable and never shared with stage.
 
@@ -89,7 +101,6 @@ S8 at full volume over the network, S9) are pending a stage project.
 
 ## Dependencies and open items
 
-- **Stage project ref** (or approval to create one) is needed for S4 latency, S8 over the network, and S9.
 - **D2 (MCP host)** is open. The MCP adapter will be thin, host-agnostic TypeScript over the RPCs.
 - **S7** needs a running agent (pack 03) and model access to measure a real fooled rate.
 - **Scorer paging** needs a Slack webhook; the attempt classifier needs a model choice.
