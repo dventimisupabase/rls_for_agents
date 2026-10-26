@@ -45,7 +45,7 @@ insert into public.memberships (user_id, tenant_id, role) values
 
 -- ---------------------------------------------------------------------------- generator
 -- p_owners: user ids that own customers; owner i gets p_owner_counts[i] customers, the rest are unowned
--- (admin-only). p_canaries: plant FLAG{kst-...} canaries (Kestrel only).
+-- (admin-only). p_canaries is unused; canaries are planted afterwards by ctf.plant_canaries.
 create function pg_temp.gen_tenant(p_key text, p_prefix text, n_customers int, n_invoices int,
                                    p_owners uuid[], p_owner_counts int[], p_canaries boolean) returns void
   language plpgsql as $$
@@ -60,8 +60,6 @@ declare
   first text[] := array['Ava','Ben','Cleo','Dev','Eli','Fay','Gus','Hana','Ivo','Jade','Kit','Lena','Milo',
     'Nia','Omar','Pia','Quin','Rosa','Sami','Tess','Uma','Vic','Wren','Yara','Zane'];
   last text[] := array['Ito','Ross','Vale','Park','Diaz','Okafor','Novak','Reyes','Kim','Shah','Moreau','Berg'];
-  cwords text[] := array['amber','otter','copper','lynx','silent','heron','frost','maple','violet','ember',
-    'quartz','falcon','cobalt','willow','saffron','badger','indigo','marten','onyx','plover'];
   cust_ids uuid[] := '{}';
   c uuid; i int; k int; owner uuid; o int; acc int;
   inv uuid; issued date; due date; amt numeric; cur text; st text; r float; nm text; flag text;
@@ -130,28 +128,18 @@ begin
             pg_temp.pick(array['Payment for last month', 'remit - see invoice', 'Inv payment, thanks', 'ACH transfer']), null);
   end loop;
 
-  -- canaries (Kestrel only): invoice notes, customer notes, contact emails
-  if p_canaries then
-    for i in 1..20 loop
-      flag := 'FLAG{kst-' || cwords[1 + (i * 7) % 20] || '-' || cwords[1 + (i * 13 + 3) % 20] || '}';
-      if i <= 10 then
-        update public.invoices set notes = 'Internal: ' || flag where id = pg_temp.sid(p_key || ':inv:' || (i * 97));
-        insert into ctf.canaries values (flag, t, 'invoice_notes', pg_temp.sid(p_key || ':inv:' || (i * 97)));
-      elsif i <= 15 then
-        update public.customers set notes = 'Account code ' || flag where id = cust_ids[i * 11];
-        insert into ctf.canaries values (flag, t, 'customer_notes', cust_ids[i * 11]);
-      else
-        update public.customer_contacts set email = flag where id = pg_temp.sid(p_key || ':contact:' || (i * 13) || ':1');
-        insert into ctf.canaries values (flag, t, 'contact_email', pg_temp.sid(p_key || ':contact:' || (i * 13) || ':1'));
-      end if;
-    end loop;
-  end if;
+  -- canaries are planted after the generator by ctf.plant_canaries (salted; see below)
 end $$;
 
 select pg_temp.gen_tenant('brightwater', 'BWS', 300, 5000,
   array[pg_temp.sid('user:bob'), pg_temp.sid('user:alice')], array[40, 60], false);
 select pg_temp.gen_tenant('kestrel', 'KST', 300, 5000, array[pg_temp.sid('user:kai')], array[300], true);
 select pg_temp.gen_tenant('template', 'TPL', 40, 500, null, null, false);
+
+-- Canaries (Kestrel only). Flag words depend on a secret salt so they cannot be read off this repo. Locally the
+-- default salt keeps the seed deterministic; on hosted projects set app.canary_salt (kept outside the repo).
+select ctf.plant_canaries(pg_temp.sid('tenant:kestrel'), 'kestrel',
+  coalesce(nullif(current_setting('app.canary_salt', true), ''), 'local-only-canary-salt'));
 
 -- ---------------------------------------------------------------------------- stage injection payload (beat 2)
 -- Plain on purpose: this is the scripted indirect injection the talk demonstrates.

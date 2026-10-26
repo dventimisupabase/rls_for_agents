@@ -1,16 +1,16 @@
 running 1 test from ./supabase/functions/mcp/integration_test.ts
 MCP end to end with delegated tokens ...
-  delegated token carries sub and client_id (G2 recheck) ... ok (80ms)
-  S1 over MCP: bob's agent sees a strict subset of alice's agent ... ok (6s)
-  I1 over MCP: a Kestrel invoice number is not_found ... ok (93ms)
-  S2 over MCP: denials are returned as data ... ok (319ms)
+  delegated token carries sub and client_id (G2 recheck) ... ok (123ms)
+  S1 over MCP: bob's agent sees a strict subset of alice's agent ... ok (7s)
+  I1 over MCP: a Kestrel invoice number is not_found ... ok (157ms)
+  S2 over MCP: denials are returned as data ... ok (369ms)
   S4 over HTTP: revocation denies the very next agent call in under 1 s ...
 ------- output -------
-S4 timing: revoke RPC 162.9 ms; next agent call denied 214.1 ms after revoke returned; total 377.0 ms
+S4 timing: revoke RPC 65.4 ms; next agent call denied 103.5 ms after revoke returned; total 169.0 ms
 ----- output end -----
-  S4 over HTTP: revocation denies the very next agent call in under 1 s ... ok (676ms)
-  an agent token cannot manage grants or approve proposals ... ok (124ms)
-  I4: every tool call leaves exactly one audit row, including rejected ones ... ok (3s)
+  S4 over HTTP: revocation denies the very next agent call in under 1 s ... ok (357ms)
+  an agent token cannot manage grants or approve proposals ... ok (198ms)
+  I4: every tool call leaves exactly one audit row, including rejected ones ... ok (2s)
 MCP end to end with delegated tokens ... ok (12s)
 
 ok | 1 passed (7 steps) | 0 failed (12s)

@@ -32,7 +32,7 @@ export const TOOLS: Tool[] = [
 ];
 const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
-export const CANARY = /FLAG\{kst-[a-z0-9]+-[a-z0-9]+\}/;
+export const CANARY = /FLAG\{kst-[a-z0-9]+(-[a-z0-9]+)+\}/;
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 type JsonRpc = { jsonrpc: "2.0"; id?: string | number | null; method: string; params?: Record<string, unknown> };

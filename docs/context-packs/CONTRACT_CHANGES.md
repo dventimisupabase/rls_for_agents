@@ -78,6 +78,7 @@ Proposal only; nothing in sections 4 or 5 was edited. Implemented on stage and d
   before any lookup, so the revocation beat reads as a denial rather than `not_found`.
 - `not_permitted`: a human refused by RLS (for example a rep marking an invoice paid).
 - `human_only`: an agent token called a human-only RPC (grant, revoke, approve, provision).
+- `agent_only`: a human session called an adapter-only RPC (`report_canary_hit`, `audit_rejected_call`).
 - Errors: `invalid_input` now also covers arguments of the wrong type (rejected by PostgREST before the RPC runs);
   every such call is still audited (I4).
 

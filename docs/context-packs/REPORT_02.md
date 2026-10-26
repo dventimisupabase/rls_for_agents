@@ -2,7 +2,7 @@
 
 Owner: David. Branch: `feat/data-layer`. Started 2026-10-26.
 
-**Environment.** Stage project `ar-copilot-stage` (org `supabase-demo`, us-west-2) was created on
+**Environment.** Stage project `ar-copilot-stage` (a demo org, us-west-2) was created on
 2026-10-26 and is linked as `[remotes.stage]` in `config.toml`. Development and the full test suites also
 run on the local stack (`supabase start`, CLI 2.122.0 pinned via `npx`, local ports 5532x because another
 local project holds 5432x). The stage database password and seed password live in `~/.ar-copilot/stage.env`
@@ -59,7 +59,7 @@ local project holds 5432x). The stage database password and seed password live i
    `not_permitted`.
 10. **Statement timeout and row caps.** A `SET statement_timeout` clause on a function does not apply to
     the statement that is already running, so the timeout comes from the `authenticated` role setting,
-    which PostgREST applies per request (Supabase default 8 s). Row caps are `LIMIT 200` inside each list RPC.
+    which PostgREST applies per request. Verified on local and stage: `authenticated` has `statement_timeout=8s` (`anon` 3s). Row caps are `LIMIT 200` inside each list RPC.
 11. **Canary flag without breaking append-only audit.** Each tool RPC checks its own result for the
     canary pattern before writing the audit row (`app.has_canary`). The MCP server's defense-in-depth scan
     will write a separate audit row rather than update one, since `audit_log` has no UPDATE for anyone.
@@ -147,6 +147,24 @@ local project holds 5432x). The stage database password and seed password live i
     (invoice numbers are per-tenant), so normal lookups inflated "fooled". (b) Calls to nonexistent privileged tools
     (raw SQL, self-approval) were audited but not counted as attempts. Both fixed in
     `20261026220800_scorer_probe_fix.sql`, with regression tests, and deployed to stage.
+33. **Forgery hardening (found in review, fixed and deployed).** Any signed-in human could call
+    `public.report_canary_hit` with a first-party session and the scorer turned it into a Flag 1 capture (and a page).
+    Now both adapter-only RPCs (`report_canary_hit`, `audit_rejected_call`) refuse callers without `client_id`
+    (reason `agent_only`, audited), and I1 is minted only from agent tool rows: canary-scan rows are caller-asserted,
+    so they remain audit records only. A regression sweep (`07_forgery.test.sql`, runs on stage too) calls every
+    function `authenticated` can execute in `public`, as a fresh player and as an agent, then scores, and asserts zero
+    manufactured captures; it also pins the list of such functions so a new one forces the sweep to be extended.
+34. **Canaries are salted.** The seed used to derive all 20 Kestrel flags from a public word list, so anyone reading the
+    repo could list them. `ctf.plant_canaries(tenant, key, salt)` (postgres-only) now derives the words from a secret salt
+    at deterministic locations; flags gained a salted third segment and the detectors accept it. Locally a default salt keeps
+    the seed deterministic (invoice digest unchanged). On stage the canaries were re-planted with a private salt
+    (`~/.ar-copilot/stage.env`, `STAGE_CANARY_SALT`): 20 planted, 20 registered, 0 of the old published flags left.
+    **Do the same for arena** (set `app.canary_salt` before seeding, or call `ctf.plant_canaries` afterwards).
+35. **Realtime for beat 3.** `app.pending_actions` is in the `supabase_realtime` publication. Tested locally
+    (`supabase/tests/realtime/realtime_test.ts`, 3 consecutive passes): Alice receives her agent's proposal in 340 to
+    542 ms; the Kestrel admin, subscribed to the same table, receives nothing (RLS applies to `postgres_changes`). The first
+    run right after a database reset failed while Realtime re-attached; warm up before rehearsals. Not yet run against stage.
+
 
 ## Evidence notes
 
@@ -164,6 +182,16 @@ local project holds 5432x). The stage database password and seed password live i
 
 ## Dependencies and open items
 
-- **D2 (MCP host)** is open. The MCP adapter will be thin, host-agnostic TypeScript over the RPCs.
-- **S7 fooled rate:** run `scripts/eval.sh --bedrock` once approved. It would invoke Claude on Bedrock in the AWS sandbox account (about 230 attempts, up to 6 model turns each). The model choice is D4 (Mrinali).
-- **Scorer paging** needs a Slack webhook URL stored in Vault as `ctf_slack_webhook_url`; the attempt classifier needs a model choice.
+Needs a decision or another person:
+- **S7 fooled rate:** approval to run `scripts/eval.sh --bedrock` (Claude on Bedrock in the AWS sandbox account; about 230
+  attempts, up to 6 model turns each). The model choice is D4 (Mrinali).
+- **Paging:** a Slack webhook URL stored in Vault as `ctf_slack_webhook_url` (stage and arena).
+- **Grafana:** a password for `grafana_reader` (`alter role grafana_reader password ...`), set out of band.
+- **D2 (MCP host):** open. The adapter core is host-agnostic; the Edge Function host is deployed to stage.
+- **Attempt classifier:** needs a cheap model choice; categories are rule-based until then.
+- **Pack 03/04:** the consent page (calls `grant_agent` after approval) and registering the real agent OAuth client on
+  stage. The client must be **confidential** (as in the spike): with a public client, a player could mint their own
+  delegated token through PKCE. The runtime should call `ctf.record_prompt` and `ctf.record_runtime_tool_calls` (I4).
+- **Arena project:** not created yet (milestone Nov 6). Seed it with its own canary salt.
+- **Public repo:** `supabase/config.toml` contains the stage project ref under `[remotes.stage]` (the CLI needs it to target
+  stage); keep or move it.
