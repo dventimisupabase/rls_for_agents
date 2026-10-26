@@ -1,0 +1,50 @@
+### run A (after handle-race fix): 200 players x 2 concurrent calls, client socket cap 100
+{
+  "failure_kinds": {},
+  "players": 200,
+  "client_socket_cap": 100,
+  "requests": 400,
+  "ok": 400,
+  "created_true": 200,
+  "same_tenant_for_both_calls": true,
+  "latency_ms": {
+    "p50": "206",
+    "p95": "704",
+    "max": "1096"
+  },
+  "wall_ms": "1106",
+  "db": {
+    "player_rows": 200,
+    "distinct_handles": 200,
+    "invoices_per_tenant_min": 560,
+    "invoices_per_tenant_max": 560
+  }
+}
+exit=0
+
+### run B: raw burst, no socket cap; transport failures are the local Docker port-forward refusing >~128 new sockets
+{
+  "failure_kinds": {
+    "transport_refused": 164
+  },
+  "players": 200,
+  "client_socket_cap": "none",
+  "requests": 400,
+  "ok": 236,
+  "created_true": 129,
+  "same_tenant_for_both_calls": false,
+  "latency_ms": {
+    "p50": "178",
+    "p95": "669",
+    "max": "697"
+  },
+  "wall_ms": "709",
+  "db": {
+    "player_rows": 129,
+    "distinct_handles": 129,
+    "invoices_per_tenant_min": 560,
+    "invoices_per_tenant_max": 560
+  }
+}
+
+### before the fix (first run A): failure_kinds {"409 23505 duplicate key value violates unique constraint players_handle_key": 2}

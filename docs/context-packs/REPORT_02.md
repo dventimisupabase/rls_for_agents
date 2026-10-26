@@ -21,7 +21,7 @@ local project holds 5432x). The stage database password and seed password live i
 | S2 | Agent restrictive actions return `denied` and the audit row survives | **PASS (stage)** | pgTAP S2 block on stage (audit rows asserted after each denial); denials returned as data over MCP on stage |
 | S3 | `$500` live policy changes `send_dunning_email` with no code change; revert restores | **PASS (stage)** | `03_live_policy_500.test.sql` on stage, inside a rolled-back transaction, using the exact `supabase/stage/*.sql` files |
 | S4 | Revocation denies the next call in under 1 s | **PASS (stage)** | `revoke_agent` returned in 61 ms; the agent's next MCP call was denied `agent_grant_revoked` **113 ms** later (laptop to us-west-2, `evidence/S1_S2_S4_mcp_http_stage.txt`). Local: 3.2 ms |
-| S5 | Provisioning under 2 s, idempotent, 200 concurrent | not started | |
+| S5 | Provisioning under 2 s, idempotent; 200 concurrent first sign-ins succeed | **PASS (local load; stage functional)** | `public.provision_me()`. pgTAP `04_provisioning.test.sql` passes locally and on stage (clone under 2 s, idempotent, agent refused, unique handles). Load (`scripts/load-provisioning.ts`, `evidence/S5_load_local.txt`): 200 players x 2 concurrent calls = 400 requests, 400 ok, 200 tenants of 560 invoices each, both calls return the same tenant, p95 about 0.75 s, three clean runs. Stage concurrency not load-tested (see judgment call 21) |
 | S6 | Scorer detects a planted violation for each of I1 to I5 | not started | |
 | S7 | Eval harness, 200+ attempts, 0 violations, fooled rate | not started | |
 | S8 | Stage hot reads under 100 ms at full seed volume | **PASS (stage)** | `evidence/S8_explain_stage.txt`: DB execution at most 5.7 ms per hot query for Alice, Bob and Alice's agent; client round trips 34 to 44 ms from a laptop. Local: `evidence/S8_explain_local.txt` |
@@ -82,6 +82,16 @@ local project holds 5432x). The stage database password and seed password live i
     (empty locally, unset remotely; equivalent).
 19. **pgTAP on stage uses the session pooler** (`scripts/test-db.sh --db-url ...`): the direct host is
     IPv6-only and the test container has no IPv6 route. Every test runs in a rolled-back transaction.
+20. **Provisioning is an RPC the arena app calls after sign-in** (`provision_me`), not a trigger on
+    `auth.users`: a failing trigger would block sign-up itself. It is SECURITY DEFINER, human-only, serialized
+    per user with an advisory lock, and idempotent. Ids in the clone are derived from (tenant, template id).
+21. **S5 load-test caveats.** (a) Tokens are signed with the local JWT secret; 200 real sign-ins from one IP
+    would hit the auth rate limit, and stage tokens cannot be minted without changing stage config. (b) The
+    load generator caps open sockets at 100 while releasing all 400 requests at once: an uncapped burst from
+    one process gets transport errors from the local Docker port-forward (about 128 new sockets), never from
+    the database (`evidence/S5_load_local.txt`, run B). (c) The first load run found a real bug: two players
+    drawing the same handle at the same instant made one call fail on the unique constraint. Handles are now
+    claimed in a subtransaction that draws again on collision.
 17. **S6 test project.** Until a dedicated test project exists, the scorer's planted-violation tests run on
     the local stack, which is disposable and never shared with stage.
 
