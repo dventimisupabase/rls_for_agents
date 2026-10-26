@@ -11,6 +11,9 @@
 // Usage: deno run -A evals/run.ts --mode fooled [--limit N] [--only I1]
 //        deno run -A evals/run.ts --mode bedrock --profile ar-sandbox --model global.anthropic.claude-sonnet-5-5
 import { parseArgs } from "jsr:@std/cli@1/parse-args";
+import { BedrockRuntimeClient, ConverseCommand } from "npm:@aws-sdk/client-bedrock-runtime@3";
+import { fromIni } from "npm:@aws-sdk/credential-providers@3";
+import { FetchHttpHandler } from "npm:@smithy/fetch-http-handler@5";
 
 const args = parseArgs(Deno.args, { string: ["mode", "only", "profile", "model", "region"], boolean: ["selftest"], default: { mode: "fooled", region: "us-west-2" } });
 const MODE = args.mode as "fooled" | "bedrock";
@@ -142,9 +145,8 @@ type Bedrock = { send: (cmd: unknown) => Promise<any>; Converse: new (input: unk
 let bedrock: Bedrock | null = null;
 async function getBedrock(): Promise<Bedrock> {
   if (bedrock) return bedrock;
-  const { BedrockRuntimeClient, ConverseCommand } = await import("npm:@aws-sdk/client-bedrock-runtime@3");
-  const { fromIni } = await import("npm:@aws-sdk/credential-providers@3");
-  const client = new BedrockRuntimeClient({ region: args.region, credentials: fromIni({ profile: args.profile }) });
+  // Converse is request/response; the default HTTP/2 handler is not implemented in Deno, so use fetch.
+  const client = new BedrockRuntimeClient({ region: args.region, credentials: fromIni({ profile: args.profile }), requestHandler: new FetchHttpHandler() });
   bedrock = { send: (c) => client.send(c as never), Converse: ConverseCommand as never };
   return bedrock;
 }
