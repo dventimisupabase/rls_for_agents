@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# copied from supabase/stage by scripts/test-db.sh
+tests/database/_stage/
