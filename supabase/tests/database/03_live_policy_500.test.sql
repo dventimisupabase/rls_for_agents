@@ -2,11 +2,11 @@ begin;
 \ir _fixtures.psql
 select * from no_plan();
 
--- one draft under 500 (BWS-2026-0002, 300.00) and one over (BWS-2026-0001, 1200.00), both by alice's agent
+-- one draft under 500 (BWS-2026-9002, 300.00) and one over (BWS-2026-9001, 1200.00), both by alice's agent
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
 create temp table drafts as
-  select (public.draft_dunning_email('BWS-2026-0002', 'friendly') #>> '{data,email_id}')::uuid as small,
-         (public.draft_dunning_email('BWS-2026-0001', 'friendly') #>> '{data,email_id}')::uuid as big;
+  select (public.draft_dunning_email('BWS-2026-9002', 'friendly') #>> '{data,email_id}')::uuid as small,
+         (public.draft_dunning_email('BWS-2026-9001', 'friendly') #>> '{data,email_id}')::uuid as big;
 select is(public.send_dunning_email((select small from drafts)) ->> 'reason', 'agent_not_permitted', 'S3 baseline: under-500 send denied');
 reset role;
 
@@ -29,7 +29,7 @@ update app.agent_grants set revoked_at = null where user_id = 'a11ce000-0000-000
 \ir _stage/live_policy_500_revert.psql
 
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
-create temp table drafts2 as select (public.draft_dunning_email('BWS-2026-0002', 'firm') #>> '{data,email_id}')::uuid as small;
+create temp table drafts2 as select (public.draft_dunning_email('BWS-2026-9002', 'firm') #>> '{data,email_id}')::uuid as small;
 select is(public.send_dunning_email((select small from drafts2)) ->> 'reason', 'agent_not_permitted', 'S3 revert restores baseline');
 reset role;
 select is((select count(*) from pg_policies where policyname = 'agent_send_under_500'), 0::bigint, 'policy is gone after revert');

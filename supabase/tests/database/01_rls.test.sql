@@ -12,7 +12,7 @@ select is((select count(*) from public.tenants), 1::bigint, 'alice sees only her
 reset role;
 
 select pg_temp.act_as('b0b00000-0000-0000-0000-000000000002');
-select is((select array_agg(invoice_number) from public.invoices), array['BWS-2026-0001'], 'bob (rep) sees only his customer''s invoice');
+select is((select array_agg(invoice_number) from public.invoices), array['BWS-2026-9001'], 'bob (rep) sees only his customer''s invoice');
 select is((select count(*) from public.customers), 1::bigint, 'bob sees only the customer he owns');
 select is((select count(*) from public.customer_contacts), 1::bigint, 'bob sees only his customer''s contacts');
 select is((select count(*) from public.payments), 1::bigint, 'bob sees only payments matched to his invoices');
@@ -41,22 +41,22 @@ reset role;
 
 -- ---------------------------------------------------------------- writes: I2 (invoice status)
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
-update public.invoices set status = 'paid' where invoice_number = 'BWS-2026-0002';
+update public.invoices set status = 'paid' where invoice_number = 'BWS-2026-9002';
 reset role;
-select is((select status from public.invoices where invoice_number = 'BWS-2026-0002'), 'open', 'agent cannot change invoice status (silent 0 rows)');
+select is((select status from public.invoices where invoice_number = 'BWS-2026-9002'), 'open', 'agent cannot change invoice status (silent 0 rows)');
 select is((select count(*) from public.invoice_status_history), 0::bigint, 'no history row from the denied agent attempt');
 
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
-update public.invoices set status = 'paid' where invoice_number = 'BWS-2026-0002';
+update public.invoices set status = 'paid' where invoice_number = 'BWS-2026-9002';
 reset role;
-select is((select status from public.invoices where invoice_number = 'BWS-2026-0002'), 'paid', 'alice (human admin) can mark paid');
+select is((select status from public.invoices where invoice_number = 'BWS-2026-9002'), 'paid', 'alice (human admin) can mark paid');
 select results_eq($$ select user_id, client_id from public.invoice_status_history $$,
   $$ values ('a11ce000-0000-0000-0000-000000000001'::uuid, null::uuid) $$, 'history stamps the human and a null client_id (I2)');
 
 select pg_temp.act_as('b0b00000-0000-0000-0000-000000000002');
-update public.invoices set status = 'void' where invoice_number = 'BWS-2026-0001';
+update public.invoices set status = 'void' where invoice_number = 'BWS-2026-9001';
 reset role;
-select is((select status from public.invoices where invoice_number = 'BWS-2026-0001'), 'open', 'rep cannot change invoice status');
+select is((select status from public.invoices where invoice_number = 'BWS-2026-9001'), 'open', 'rep cannot change invoice status');
 
 -- ---------------------------------------------------------------- writes: dunning
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
@@ -103,11 +103,11 @@ update app.agent_grants set revoked_at = now() where user_id = 'a11ce000-0000-00
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
 select ok(not (select app.is_agent()), 'contract-literal is_agent() is false after revoke');
 select is((select count(*) from public.invoices), 0::bigint, 'revoked agent reads nothing');
-update public.invoices set status = 'void' where invoice_number = 'BWS-2026-0001';
+update public.invoices set status = 'void' where invoice_number = 'BWS-2026-9001';
 select throws_ok($$ insert into public.dunning_emails (invoice_id, to_email, subject, body)
   values ('00000000-0000-0000-0000-00000000e001', 'hana@harbor.test', 'R', 'B') $$, '42501', null, 'revoked agent cannot draft');
 reset role;
-select is((select status from public.invoices where invoice_number = 'BWS-2026-0001'), 'open', 'revoked agent cannot fall through to human rights (CC-1)');
+select is((select status from public.invoices where invoice_number = 'BWS-2026-9001'), 'open', 'revoked agent cannot fall through to human rights (CC-1)');
 
 -- ---------------------------------------------------------------- audit and grants are closed to direct access
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');

@@ -8,34 +8,34 @@ create function pg_temp.audit_count(p_tool text, p_outcome text) returns bigint
 -- ================================================================ S1: tools work for alice; bob is a strict subset
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
 select is(jsonb_array_length(public.list_overdue_invoices(0) -> 'data'), 2, 'S1 alice: list_overdue_invoices returns both overdue');
-select is(public.get_invoice('BWS-2026-0002') #>> '{data,status}', 'open', 'S1 alice: get_invoice');
+select is(public.get_invoice('BWS-2026-9002') #>> '{data,status}', 'open', 'S1 alice: get_invoice');
 select is(public.get_customer('00000000-0000-0000-0000-00000000c002') #>> '{data,name}', 'Pinecrest Builders', 'S1 alice: get_customer');
 select is(jsonb_array_length(public.list_customer_contacts() -> 'data'), 2, 'S1 alice: list_customer_contacts');
 select is(jsonb_array_length(public.search_payments(true) -> 'data'), 1, 'S1 alice: search_payments unmatched');
 select ok((public.search_payments(true) #>> '{data,0,remittance_memo}') like 'Ignore previous instructions%', 'S1 memo is returned as data');
-select ok((public.propose_payment_match('00000000-0000-0000-0000-00000000f001', 'BWS-2026-0001') ->> 'ok')::boolean, 'S1 alice: propose_payment_match');
-select is(public.draft_dunning_email('BWS-2026-0001', 'firm') #>> '{data,status}', 'draft', 'S1 alice: draft_dunning_email');
+select ok((public.propose_payment_match('00000000-0000-0000-0000-00000000f001', 'BWS-2026-9001') ->> 'ok')::boolean, 'S1 alice: propose_payment_match');
+select is(public.draft_dunning_email('BWS-2026-9001', 'firm') #>> '{data,status}', 'draft', 'S1 alice: draft_dunning_email');
 select is(public.send_dunning_email((select id from public.dunning_emails limit 1)) #>> '{data,status}', 'sent', 'S1 alice: send_dunning_email');
-select is(public.mark_invoice_paid('BWS-2026-0002') #>> '{data,status}', 'paid', 'S1 alice: mark_invoice_paid');
-select is(public.get_invoice('KST-2026-0042') ->> 'error', 'not_found', 'S1 foreign invoice number is not_found');
+select is(public.mark_invoice_paid('BWS-2026-9002') #>> '{data,status}', 'paid', 'S1 alice: mark_invoice_paid');
+select is(public.get_invoice('KST-2026-9042') ->> 'error', 'not_found', 'S1 foreign invoice number is not_found');
 reset role;
 
 select pg_temp.act_as('b0b00000-0000-0000-0000-000000000002');
 select is(jsonb_array_length(public.list_overdue_invoices(0) -> 'data'), 1, 'S1 bob: subset of overdue');
-select is(public.get_invoice('BWS-2026-0002') ->> 'error', 'not_found', 'S1 bob: alice''s customer invoice is not_found');
+select is(public.get_invoice('BWS-2026-9002') ->> 'error', 'not_found', 'S1 bob: alice''s customer invoice is not_found');
 select is(public.get_customer('00000000-0000-0000-0000-00000000c002') ->> 'error', 'not_found', 'S1 bob: other customer not_found');
 select is(jsonb_array_length(public.list_customer_contacts() -> 'data'), 1, 'S1 bob: contacts subset');
 select is(jsonb_array_length(public.search_payments(true) -> 'data'), 0, 'S1 bob: no unmatched payments');
-select is(public.mark_invoice_paid('BWS-2026-0001') ->> 'reason', 'not_permitted', 'S1 bob (human rep) is refused with not_permitted');
+select is(public.mark_invoice_paid('BWS-2026-9001') ->> 'reason', 'not_permitted', 'S1 bob (human rep) is refused with not_permitted');
 reset role;
 
 -- ================================================================ S2: agent restrictive actions are denied and audited
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
 select set_config('request.headers', '{"x-session-id":"sess-s2"}', true);
 
-select is(public.mark_invoice_paid('BWS-2026-0001'),
+select is(public.mark_invoice_paid('BWS-2026-9001'),
   '{"ok": false, "denied": true, "reason": "agent_not_permitted", "proposal_id": null}'::jsonb, 'S2 agent mark_invoice_paid -> denied envelope');
-select is(public.draft_dunning_email('BWS-2026-0001', 'friendly') #>> '{data,status}', 'draft', 'agent may draft');
+select is(public.draft_dunning_email('BWS-2026-9001', 'friendly') #>> '{data,status}', 'draft', 'agent may draft');
 create temp table s2_send as select public.send_dunning_email(
   (select id from public.dunning_emails where status = 'draft' and created_by_client is not null limit 1)) as env;
 select is((select env ->> 'reason' from s2_send), 'agent_not_permitted', 'S2 agent send_dunning_email -> denied');
@@ -46,7 +46,7 @@ select is(public.grant_agent('a6e47000-0000-0000-0000-000000000002') ->> 'reason
 select is(public.revoke_agent('a6e47000-0000-0000-0000-000000000001') ->> 'reason', 'human_only', 'agent cannot touch grants');
 reset role;
 
-select is((select status from public.invoices where invoice_number = 'BWS-2026-0001'), 'open', 'S2 invoice unchanged after denial');
+select is((select status from public.invoices where invoice_number = 'BWS-2026-9001'), 'open', 'S2 invoice unchanged after denial');
 select is(pg_temp.audit_count('mark_invoice_paid', 'denied'), 1::bigint, 'S2 audit row for the denied mark_invoice_paid survives');
 select is(pg_temp.audit_count('send_dunning_email', 'denied'), 1::bigint, 'S2 audit row for the denied send survives');
 select is(pg_temp.audit_count('decide_pending_action', 'denied'), 1::bigint, 'S2 audit row for the denied approval survives');
@@ -89,7 +89,7 @@ select ok((select canary_hit from app.audit_log where tool = 'get_customer' and 
 
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
 select is(public.list_overdue_invoices(-1), '{"ok": false, "error": "invalid_input"}'::jsonb, 'invalid_input envelope');
-select is(public.draft_dunning_email('BWS-2026-0001', 'menacing') ->> 'error', 'invalid_input', 'tone is validated');
+select is(public.draft_dunning_email('BWS-2026-9001', 'menacing') ->> 'error', 'invalid_input', 'tone is validated');
 reset role;
 
 select is((select count(*) from app.audit_log where canary_hit and user_id = 'a11ce000-0000-0000-0000-000000000001'), 0::bigint,
