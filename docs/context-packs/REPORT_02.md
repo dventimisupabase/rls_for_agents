@@ -75,6 +75,8 @@ local project holds 5432x). The stage database password and seed password live i
     endpoints the consent page uses.
 16. **Live policy files are tested as-is.** `scripts/test-db.sh` copies `supabase/stage/*.sql` into the
     test folder (gitignored) because the test container mounts only `supabase/tests`.
+17. **S6 test project.** Until a dedicated test project exists, the scorer's planted-violation tests run on
+    the local stack, which is disposable and never shared with stage.
 18. **Stage config is pushed only after a reviewed diff.** A fresh `config.toml` would have turned off
     email confirmations and TOTP MFA, shortened OTPs, shrunk the pooler and changed the site URL on stage.
     The base config now uses the hosted (safer) values, and `[remotes.stage]` pins the environment-specific
@@ -145,8 +147,6 @@ local project holds 5432x). The stage database password and seed password live i
     (invoice numbers are per-tenant), so normal lookups inflated "fooled". (b) Calls to nonexistent privileged tools
     (raw SQL, self-approval) were audited but not counted as attempts. Both fixed in
     `20261026220800_scorer_probe_fix.sql`, with regression tests, and deployed to stage.
-17. **S6 test project.** Until a dedicated test project exists, the scorer's planted-violation tests run on
-    the local stack, which is disposable and never shared with stage.
 
 ## Evidence notes
 
