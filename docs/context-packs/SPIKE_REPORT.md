@@ -16,7 +16,7 @@ agent differently from the user, including revocation on the very next call.
 
 Caveats the humans must weigh (details below):
 - The 3LO flow can **only be agent-initiated** (see section 5). The app cannot pre-seed the vault.
-- Session binding (`CompleteResourceTokenAuth`) needs an **IAM-credentialed backend** in the app.
+- Session binding (`CompleteResourceTokenAuth`) needs a caller with AWS IAM credentials (where that lives is open, section 5).
 - `is_agent()` as written in the contract has a **revoke hole** (CC-1). It must change.
 - The consent page used here is a localhost throwaway; G7 excludes a human click on a fresh consent.
 
@@ -24,13 +24,13 @@ Caveats the humans must weigh (details below):
 
 | ID | Result | Evidence |
 |----|--------|----------|
-| G1 | **PASS** | AgentCore's authorize request reached Supabase (`GET /auth/v1/oauth/authorize?...redirect_uri=<AgentCore callback>&scope=email&code_challenge_method=S256` returned 302 to the consent page). The user clicked Approve (`POST /oauth/authorizations/<id>/consent`, `oauth_consent_action: approve`, 200 in the Auth logs), the browser returned to the app via AgentCore's callback, and after session binding the token was in the vault. `whoami` with the vault token returned `is_agent: true` with the human's `sub` and the agent's `client_id`. |
+| G1 | **PASS** | One clean session as a fresh user (Carol, never consented): the app invoked the runtime, which returned `consent_required` plus an authorization URL; the browser hit Supabase `GET /oauth/authorize` (302, S256 PKCE, `scope=email`, `redirect_uri` = AgentCore callback) at 21:51:54; the consent screen was shown and the user clicked Approve (`POST /oauth/authorizations/<id>/consent`, `oauth_consent_action: approve`, 21:51:59, no `auto_approved`); the app called `CompleteResourceTokenAuth`; AgentCore then called `POST /oauth/token` (21:52:01, from an AWS address, actor = Carol, hook ran) and stored the token in the vault; the next runtime call used it and returned `sub` = Carol's id, non-null `client_id`, `is_agent: true`. |
 | G2 | **PASS** | PostgREST accepts the delegated token. `whoami` returns `{"sub":"<user-uuid>","client_id":"<client-uuid>","is_agent":true}`, both directly and from inside AgentCore Runtime using the vault token. Claims dump in section 3. |
 | G3 | **PASS** | Same `PATCH notes?id=eq.<id>`: human gets 200 and the row changes; agent gets 200 with 0 rows and the row is unchanged (silent RLS denial). Through the runtime the `update_note` tool returned `{"ok":false,"denied":true,"reason":"agent_not_permitted","proposal_id":null}`. Claude (Sonnet 5.5 on Bedrock, in the runtime) attempted the update and the DB denied it; the model's answer reported the denial faithfully. |
-| G4 | **PASS** | With the same unexpired token, after `update app.agent_grants set revoked_at = now()`: directly, SELECT returns `[]`, INSERT 403, UPDATE `[]`. Through the runtime, the next call with the same vault token saw `is_agent: false`; a re-grant restored `true`. No PostgREST caching observed. |
+| G4 | **PASS** | Denial proven on the direct path with the same kind of delegated token and no new token: after `update app.agent_grants set revoked_at = now()`, SELECT returns `[]`, INSERT 403, UPDATE `[]` (unexpired token). Through the runtime, the very next call with the same vault token saw `is_agent: false`, and a re-grant restored `true`; that shows the revoke is visible on the next call, not a runtime-level denial (the runtime `whoami` is not an RLS-protected read, and `update_note` is denied even with an active grant). No PostgREST caching observed. |
 | G5 | **Recorded** | Section 6. |
-| G6 | **PASS** | Runtime authorizer config: `customJWTAuthorizer{discoveryUrl=<OIDC discovery URL>, allowedAudience=["authenticated"]}`. No token: 401 `Missing Authentication Token`. Garbage token: 403 `Failed to parse token`. **First-party Supabase session JWT (no `client_id`): accepted.** A delegated agent token is **also accepted** (same `aud`). With the hook setting `aud=ar-copilot-agent` on agent tokens, the authorizer returns 401 `Claim 'aud' value mismatch with configuration`. Do not configure `allowedClients` (first-party tokens have no `client_id`). `customClaims` matching exists as another option (not tested). |
-| G7 | **PASS (informational)** | Click to the agent's first call: **5.8 s** end to end through the runtime (agent returns auth URL 3.3 s including a cold runtime, user back at the app 4.5 s, binding done 5.3 s, first call done 5.8 s), with consent remembered and an auto-signed-in browser. A human reading and clicking a fresh consent screen is **not** included. Supabase-only part: 554 ms. |
+| G6 | **PASS** | Runtime authorizer config: `customJWTAuthorizer{discoveryUrl=<OIDC discovery URL>, allowedAudience=["authenticated"]}`. No token: 401 `Missing Authentication Token`. Garbage token: 403 `Failed to parse token`. **First-party Supabase session JWT (no `client_id`): accepted.** A delegated agent token is **also accepted** (same `aud`). With the hook setting `aud=ar-copilot-agent` on agent tokens, the authorizer returns 401 `Claim 'aud' value mismatch with configuration`. `allowedClients` was not tested; it would likely reject first-party tokens (they have no `client_id`), which is inferred, not verified. `customClaims` matching exists as another option (not tested). |
+| G7 | **PASS (informational)** | Click to the agent's first call through the runtime: **11.3 s with a human clicking a fresh consent screen** (Carol: auth URL 3.4 s incl. a cold runtime, user back at the app 9.0 s, binding done 10.3 s, first call 11.3 s). **5.8 s** when consent is remembered (no click). The fresh-consent figure is over the 10 s target; the cold start (about 3 s) and the human click (about 4 s) are the two big parts, and consent is only shown once per user. Supabase-only part: 554 ms. |
 
 GO criteria (G1 to G4 + G6): all pass.
 
@@ -91,8 +91,10 @@ See `CONTRACT_CHANGES.md` (CC-1 to CC-5). In short:
    `CompleteResourceTokenAuth(sessionUri, userIdentifier={userToken: <user JWT>})`. AgentCore does
    not call the Supabase token endpoint until then (confirmed in Supabase Auth logs: no
    `/oauth/token` call before binding). The session expires within minutes; running it late gives
-   "Invalid or expired session". This call needs AWS IAM credentials, so the app needs a small
-   AWS-side backend (for example a Lambda behind the return URL). Pack 03 and pack 04 interface item.
+   "Invalid or expired session". The spike made this call with operator IAM credentials. Where it should live is open:
+   an IAM-credentialed app backend (for example a Lambda behind the return URL) is one option; letting
+   the runtime do it on a follow-up invoke is another (the runtime role already has the permission;
+   not tested). Pack 03 and pack 04 interface item.
 3. `GetResourceOauth2Token` requires `resourceOauth2ReturnUrl` for USER_FEDERATION on every call,
    even when a token is cached; the return URL must be in the workload identity's
    `allowedResourceOauth2ReturnUrls`.
@@ -106,6 +108,15 @@ See `CONTRACT_CHANGES.md` (CC-1 to CC-5). In short:
 7. **Sonnet 5.5 rejects the `temperature` parameter** (`temperature is deprecated for this model`)
    on Bedrock Converse. Model id `global.anthropic.claude-sonnet-5-5` worked from the runtime role.
 8. Inbound authorizer cannot distinguish agent from first-party tokens unless `aud` is tuned (G6).
+9. **Identity mix-up risk in the 3LO flow (observed).** Binding confirms the user who *started* the
+   flow, not that the identity who *consented* at Supabase is the same person. In a test run where the
+   browser still held another test user's Supabase session, user B's JWT started the flow, the consent
+   and code were for user A, binding succeeded for B, and the runtime then acted as **A** for B's
+   requests (B's `whoami` returned A's `sub`). The vault is keyed per user (B's first call correctly
+   returned `consent_required`), so this is a mix-up, not a vault leak. Mitigation to build and test:
+   the agent (or app) must check that the vault token's `sub` equals the inbound JWT's `sub` before
+   using it (this needs the inbound `Authorization` header via the runtime's request-header
+   allowlist, not tested), and the consent page must use the same Supabase session as the app.
 
 ## 6. G5: lifetime and refresh
 
@@ -175,13 +186,15 @@ AWS (us-west-2):
 8. Sonnet 5.5 rejects `temperature`. Runtime sessions pin old code after a redeploy.
 9. The first runtime call includes a cold start of about 3 s; warm the runtime before the live
    "Connect agent" beat.
-10. Not tested: `allowedClients`/`customClaims` authorizer options, refresh from inside the runtime,
+10. Scopes: the server lists only standard OIDC scopes (`openid email profile phone offline_access`); "agent narrower than user" cannot be expressed as OAuth scopes and must live in RLS and the grants table.
+11. Identity mix-up in 3LO (section 5, item 9): add a `sub` equality check before using a vault token.
+12. Not tested: `allowedClients`/`customClaims` authorizer options, refresh from inside the runtime,
     the token vault's own refresh behavior after 3600 s, dynamic client registration (left disabled).
 
-## 9. Sandbox resources created (for teardown)
+## 9. Sandbox resources created and still running (for teardown, awaiting approval)
 
 AWS (account `<sandbox-account>`, us-west-2): AgentCore runtime `ar_spike_agent`, OAuth2 credential
 provider `supabase-ar-agent` (and its Secrets Manager secret), workload identity `ar-spike-app`,
 IAM role `ar-spike-agentcore-runtime`, S3 bucket `ar-spike-agent-code-<sandbox-account>-usw2`,
-CloudWatch log group for the runtime. Supabase: scratch project `<project-ref>`. Local: profile
+CloudWatch log group for the runtime. Supabase: scratch project `<project-ref>` with test users alice, bob, carol. Local: profile
 `ar-sandbox` appended to `~/.aws/config` (backup `~/.aws/config.bak-ar-spike`).

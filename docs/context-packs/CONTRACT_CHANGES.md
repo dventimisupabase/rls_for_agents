@@ -62,3 +62,8 @@ AgentCore Identity's 3LO for a runtime is agent-initiated and needs a `CompleteR
 call from an IAM-credentialed backend after the user returns. The app/agent interface therefore
 includes a `consent_required` result carrying an authorization URL, plus a return-URL handler.
 See `SPIKE_REPORT.md` section 5.
+
+Added risk (observed in the spike): binding confirms who started the flow, not who consented. If the
+consent happens under a different Supabase session than the app user, the runtime acts as the consenting
+user. Recommended (untested) mitigation: compare the vault token's `sub` to the inbound JWT's `sub`
+before every use, and keep the consent page on the same Supabase session as the app.
