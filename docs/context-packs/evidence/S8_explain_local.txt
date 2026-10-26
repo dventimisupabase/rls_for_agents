@@ -1,0 +1,675 @@
+=================================================================== alice (admin), human session
+                                 set_config                                 
+----------------------------------------------------------------------------
+ {"sub" : "a85139c7-646c-2a4b-edf0-bfba2c631023", "role" : "authenticated"}
+(1 row)
+
+--- list_overdue_invoices inner query (min_days_overdue = 30)
+                                                                                                                              QUERY PLAN                                                                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=2.887..2.901 rows=200 loops=1)
+   Buffers: shared hit=286
+   InitPlan 1
+     ->  Result (actual time=0.006..0.006 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   InitPlan 5
+     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (never executed)
+   ->  Sort (actual time=2.887..2.893 rows=200 loops=1)
+         Sort Key: i.due_at
+         Sort Method: top-N heapsort  Memory: 69kB
+         Buffers: shared hit=286
+         ->  Hash Join (actual time=0.778..2.615 rows=1757 loops=1)
+               Hash Cond: (i.customer_id = c.id)
+               Buffers: shared hit=283
+               ->  Seq Scan on invoices i (actual time=0.274..1.905 rows=1757 loops=1)
+                     Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND (status = ANY ('{open,partial}'::text[])) AND (due_at <= (CURRENT_DATE - 30)) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+                     Rows Removed by Filter: 8923
+                     Buffers: shared hit=258
+                     SubPlan 3
+                       ->  ProjectSet (actual time=0.241..0.247 rows=1 loops=1)
+                             Buffers: shared hit=77
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                     SubPlan 4
+                       ->  ProjectSet (actual time=0.142..0.170 rows=60 loops=1)
+                             Buffers: shared hit=5
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               ->  Hash (actual time=0.497..0.498 rows=300 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 29kB
+                     Buffers: shared hit=25
+                     ->  Seq Scan on customers c (actual time=0.094..0.468 rows=300 loops=1)
+                           Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+                           Rows Removed by Filter: 340
+                           Buffers: shared hit=25
+                           SubPlan 7
+                             ->  ProjectSet (actual time=0.072..0.073 rows=1 loops=1)
+                                   Buffers: shared hit=2
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                           SubPlan 8
+                             ->  ProjectSet (actual time=0.213..0.251 rows=60 loops=1)
+                                   Buffers: shared hit=14
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=431
+ Planning Time: 0.599 ms
+ Execution Time: 3.000 ms
+(48 rows)
+
+--- get_invoice inner query (BWS-2026-0042)
+                                                                                  QUERY PLAN                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=0.099..0.102 rows=1 loops=1)
+   Buffers: shared hit=10
+   InitPlan 1
+     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   InitPlan 5
+     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (never executed)
+   ->  Nested Loop (actual time=0.099..0.099 rows=1 loops=1)
+         Buffers: shared hit=10
+         ->  Index Scan using invoices_number_idx on invoices i (actual time=0.051..0.051 rows=1 loops=1)
+               Index Cond: (invoice_number = 'BWS-2026-0042'::text)
+               Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+               Buffers: shared hit=5
+               SubPlan 3
+                 ->  ProjectSet (actual time=0.037..0.038 rows=1 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 4
+                 ->  ProjectSet (never executed)
+                       ->  Result (never executed)
+         ->  Index Scan using customers_pkey on customers c (actual time=0.047..0.047 rows=1 loops=1)
+               Index Cond: (id = i.customer_id)
+               Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+               Buffers: shared hit=5
+               SubPlan 7
+                 ->  ProjectSet (actual time=0.029..0.030 rows=1 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 8
+                 ->  ProjectSet (never executed)
+                       ->  Result (never executed)
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.097 ms
+ Execution Time: 0.120 ms
+(38 rows)
+
+--- list_customer_contacts inner query
+                                                                                     QUERY PLAN                                                                                      
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=1.060..1.073 rows=200 loops=1)
+   Buffers: shared hit=47
+   InitPlan 1
+     ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   InitPlan 5
+     ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (never executed)
+   ->  Sort (actual time=1.059..1.065 rows=200 loops=1)
+         Sort Key: c.name, cc.name
+         Sort Method: top-N heapsort  Memory: 69kB
+         Buffers: shared hit=47
+         ->  Hash Join (actual time=0.352..0.766 rows=604 loops=1)
+               Hash Cond: (cc.customer_id = c.id)
+               Buffers: shared hit=44
+               ->  Seq Scan on customer_contacts cc (actual time=0.058..0.400 rows=604 loops=1)
+                     Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+                     Rows Removed by Filter: 685
+                     Buffers: shared hit=28
+                     SubPlan 3
+                       ->  ProjectSet (actual time=0.049..0.050 rows=1 loops=1)
+                             Buffers: shared hit=2
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                     SubPlan 4
+                       ->  ProjectSet (actual time=0.129..0.167 rows=60 loops=1)
+                             Buffers: shared hit=5
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               ->  Hash (actual time=0.291..0.292 rows=300 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 29kB
+                     Buffers: shared hit=16
+                     ->  Seq Scan on customers c (actual time=0.046..0.273 rows=300 loops=1)
+                           Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+                           Rows Removed by Filter: 340
+                           Buffers: shared hit=16
+                           SubPlan 7
+                             ->  ProjectSet (actual time=0.036..0.037 rows=1 loops=1)
+                                   Buffers: shared hit=2
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                           SubPlan 8
+                             ->  ProjectSet (actual time=0.116..0.146 rows=60 loops=1)
+                                   Buffers: shared hit=5
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=75
+ Planning Time: 0.188 ms
+ Execution Time: 1.099 ms
+(48 rows)
+
+--- search_payments inner query (unmatched_only)
+                                                                                      QUERY PLAN                                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=1.278..1.282 rows=31 loops=1)
+   Buffers: shared hit=1086
+   InitPlan 1
+     ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   ->  Sort (actual time=1.278..1.280 rows=31 loops=1)
+         Sort Key: p.received_at DESC
+         Sort Method: quicksort  Memory: 29kB
+         Buffers: shared hit=1086
+         ->  Bitmap Heap Scan on payments p (actual time=0.073..1.268 rows=31 loops=1)
+               Recheck Cond: (matched_invoice_id IS NULL)
+               Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (matched_invoice_id = (hashed SubPlan 4).col1))))
+               Rows Removed by Filter: 60
+               Heap Blocks: exact=23
+               Buffers: shared hit=1083
+               ->  Bitmap Index Scan on payments_matched_idx (actual time=0.008..0.008 rows=100 loops=1)
+                     Index Cond: (matched_invoice_id IS NULL)
+                     Buffers: shared hit=2
+               SubPlan 3
+                 ->  ProjectSet (actual time=0.050..0.052 rows=1 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 4
+                 ->  ProjectSet (actual time=0.152..1.051 rows=1035 loops=1)
+                       Buffers: shared hit=1056
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=92
+ Planning Time: 0.124 ms
+ Execution Time: 1.309 ms
+(31 rows)
+
+--- end-to-end RPC execution times (ms), each includes its audit insert
+ list_overdue_rows 
+-------------------
+               200
+(1 row)
+
+Time: 4.530 ms
+ get_invoice_ok 
+----------------
+ true
+(1 row)
+
+Time: 0.925 ms
+ contacts_rows 
+---------------
+           200
+(1 row)
+
+Time: 2.297 ms
+ unmatched_rows 
+----------------
+             31
+(1 row)
+
+Time: 1.550 ms
+ get_customer_ok 
+-----------------
+ true
+(1 row)
+
+Time: 0.822 ms
+=================================================================== bob (rep), human session
+                                 set_config                                 
+----------------------------------------------------------------------------
+ {"sub" : "05fe36cb-8626-49e1-6c92-2d8011c3fbe3", "role" : "authenticated"}
+(1 row)
+
+--- list_overdue_invoices inner query (min_days_overdue = 30)
+                                                                                                                              QUERY PLAN                                                                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=2.223..2.245 rows=200 loops=1)
+   Buffers: shared hit=284
+   InitPlan 1
+     ->  Result (actual time=0.003..0.004 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   InitPlan 5
+     ->  Result (actual time=0.002..0.003 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (never executed)
+   ->  Sort (actual time=2.223..2.232 rows=200 loops=1)
+         Sort Key: i.due_at
+         Sort Method: quicksort  Memory: 59kB
+         Buffers: shared hit=284
+         ->  Hash Join (actual time=0.829..2.154 rows=258 loops=1)
+               Hash Cond: (i.customer_id = c.id)
+               Buffers: shared hit=281
+               ->  Seq Scan on invoices i (actual time=0.466..1.759 rows=258 loops=1)
+                     Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND (status = ANY ('{open,partial}'::text[])) AND (due_at <= (CURRENT_DATE - 30)) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+                     Rows Removed by Filter: 10422
+                     Buffers: shared hit=266
+                     SubPlan 3
+                       ->  ProjectSet (actual time=0.207..0.207 rows=0 loops=1)
+                             Buffers: shared hit=77
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                     SubPlan 4
+                       ->  ProjectSet (actual time=0.192..0.216 rows=40 loops=1)
+                             Buffers: shared hit=13
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               ->  Hash (actual time=0.360..0.361 rows=40 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                     Buffers: shared hit=15
+                     ->  Seq Scan on customers c (actual time=0.290..0.356 rows=40 loops=1)
+                           Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+                           Rows Removed by Filter: 600
+                           Buffers: shared hit=15
+                           SubPlan 7
+                             ->  ProjectSet (actual time=0.057..0.057 rows=0 loops=1)
+                                   Buffers: shared hit=2
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                           SubPlan 8
+                             ->  ProjectSet (actual time=0.171..0.196 rows=40 loops=1)
+                                   Buffers: shared hit=4
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=431
+ Planning Time: 0.603 ms
+ Execution Time: 2.331 ms
+(48 rows)
+
+--- get_invoice inner query (BWS-2026-0042)
+                                                                                  QUERY PLAN                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=0.351..0.353 rows=1 loops=1)
+   Buffers: shared hit=18
+   InitPlan 1
+     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   InitPlan 5
+     ->  Result (actual time=0.006..0.006 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (never executed)
+   ->  Nested Loop (actual time=0.351..0.352 rows=1 loops=1)
+         Buffers: shared hit=18
+         ->  Index Scan using invoices_number_idx on invoices i (actual time=0.163..0.163 rows=1 loops=1)
+               Index Cond: (invoice_number = 'BWS-2026-0042'::text)
+               Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+               Buffers: shared hit=9
+               SubPlan 3
+                 ->  ProjectSet (actual time=0.036..0.037 rows=0 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 4
+                 ->  ProjectSet (actual time=0.088..0.106 rows=40 loops=1)
+                       Buffers: shared hit=4
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+         ->  Index Scan using customers_pkey on customers c (actual time=0.187..0.188 rows=1 loops=1)
+               Index Cond: (id = i.customer_id)
+               Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+               Buffers: shared hit=9
+               SubPlan 7
+                 ->  ProjectSet (actual time=0.047..0.047 rows=0 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 8
+                 ->  ProjectSet (actual time=0.098..0.117 rows=40 loops=1)
+                       Buffers: shared hit=4
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.113 ms
+ Execution Time: 0.376 ms
+(40 rows)
+
+--- list_customer_contacts inner query
+                                                                                     QUERY PLAN                                                                                      
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=0.537..0.546 rows=87 loops=1)
+   Buffers: shared hit=45
+   InitPlan 1
+     ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   InitPlan 5
+     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (never executed)
+   ->  Sort (actual time=0.537..0.540 rows=87 loops=1)
+         Sort Key: c.name, cc.name
+         Sort Method: quicksort  Memory: 36kB
+         Buffers: shared hit=45
+         ->  Hash Join (actual time=0.393..0.495 rows=87 loops=1)
+               Hash Cond: (cc.customer_id = c.id)
+               Buffers: shared hit=42
+               ->  Seq Scan on customer_contacts cc (actual time=0.175..0.265 rows=87 loops=1)
+                     Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+                     Rows Removed by Filter: 1202
+                     Buffers: shared hit=27
+                     SubPlan 3
+                       ->  ProjectSet (actual time=0.052..0.052 rows=0 loops=1)
+                             Buffers: shared hit=2
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                     SubPlan 4
+                       ->  ProjectSet (actual time=0.092..0.110 rows=40 loops=1)
+                             Buffers: shared hit=4
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               ->  Hash (actual time=0.216..0.217 rows=40 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                     Buffers: shared hit=15
+                     ->  Seq Scan on customers c (actual time=0.166..0.213 rows=40 loops=1)
+                           Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+                           Rows Removed by Filter: 600
+                           Buffers: shared hit=15
+                           SubPlan 7
+                             ->  ProjectSet (actual time=0.044..0.044 rows=0 loops=1)
+                                   Buffers: shared hit=2
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                           SubPlan 8
+                             ->  ProjectSet (actual time=0.091..0.110 rows=40 loops=1)
+                                   Buffers: shared hit=4
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=75
+ Planning Time: 0.172 ms
+ Execution Time: 0.568 ms
+(48 rows)
+
+--- search_payments inner query (unmatched_only)
+                                                                                      QUERY PLAN                                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=0.685..0.686 rows=0 loops=1)
+   Buffers: shared hit=773
+   InitPlan 1
+     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (never executed)
+   ->  Sort (actual time=0.685..0.685 rows=0 loops=1)
+         Sort Key: p.received_at DESC
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=773
+         ->  Bitmap Heap Scan on payments p (actual time=0.677..0.678 rows=0 loops=1)
+               Recheck Cond: (matched_invoice_id IS NULL)
+               Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (matched_invoice_id = (hashed SubPlan 4).col1))))
+               Rows Removed by Filter: 91
+               Heap Blocks: exact=23
+               Buffers: shared hit=770
+               ->  Bitmap Index Scan on payments_matched_idx (actual time=0.004..0.004 rows=100 loops=1)
+                     Index Cond: (matched_invoice_id IS NULL)
+                     Buffers: shared hit=2
+               SubPlan 3
+                 ->  ProjectSet (actual time=0.048..0.049 rows=0 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 4
+                 ->  ProjectSet (actual time=0.143..0.537 rows=713 loops=1)
+                       Buffers: shared hit=743
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=92
+ Planning Time: 0.116 ms
+ Execution Time: 0.700 ms
+(31 rows)
+
+--- end-to-end RPC execution times (ms), each includes its audit insert
+ list_overdue_rows 
+-------------------
+               200
+(1 row)
+
+Time: 3.818 ms
+ get_invoice_ok 
+----------------
+ true
+(1 row)
+
+Time: 1.726 ms
+ contacts_rows 
+---------------
+            87
+(1 row)
+
+Time: 1.406 ms
+ unmatched_rows 
+----------------
+              0
+(1 row)
+
+Time: 1.151 ms
+ get_customer_ok 
+-----------------
+ true
+(1 row)
+
+Time: 0.859 ms
+=================================================================== alice agent (delegated token)
+                                                            set_config                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ {"sub" : "a85139c7-646c-2a4b-edf0-bfba2c631023", "role" : "authenticated", "client_id" : "a6e47000-0000-0000-0000-0000000000aa"}
+(1 row)
+
+--- list_overdue_invoices inner query (min_days_overdue = 30)
+                                                                                                                              QUERY PLAN                                                                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=2.869..2.886 rows=200 loops=1)
+   Buffers: shared hit=309
+   InitPlan 1
+     ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (actual time=0.144..0.144 rows=1 loops=1)
+           Buffers: shared hit=30
+   InitPlan 5
+     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (actual time=0.082..0.082 rows=1 loops=1)
+           Buffers: shared hit=2
+   ->  Sort (actual time=2.868..2.875 rows=200 loops=1)
+         Sort Key: i.due_at
+         Sort Method: top-N heapsort  Memory: 69kB
+         Buffers: shared hit=309
+         ->  Hash Join (actual time=0.758..2.579 rows=1757 loops=1)
+               Hash Cond: (i.customer_id = c.id)
+               Buffers: shared hit=306
+               ->  Seq Scan on invoices i (actual time=0.301..1.907 rows=1757 loops=1)
+                     Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND (status = ANY ('{open,partial}'::text[])) AND (due_at <= (CURRENT_DATE - 30)) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+                     Rows Removed by Filter: 8923
+                     Buffers: shared hit=279
+                     SubPlan 3
+                       ->  ProjectSet (actual time=0.137..0.139 rows=1 loops=1)
+                             Buffers: shared hit=68
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                     SubPlan 4
+                       ->  ProjectSet (actual time=0.124..0.151 rows=60 loops=1)
+                             Buffers: shared hit=5
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               ->  Hash (actual time=0.452..0.453 rows=300 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 29kB
+                     Buffers: shared hit=27
+                     ->  Seq Scan on customers c (actual time=0.141..0.428 rows=300 loops=1)
+                           Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+                           Rows Removed by Filter: 340
+                           Buffers: shared hit=27
+                           SubPlan 7
+                             ->  ProjectSet (actual time=0.043..0.044 rows=1 loops=1)
+                                   Buffers: shared hit=2
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                           SubPlan 8
+                             ->  ProjectSet (actual time=0.156..0.187 rows=60 loops=1)
+                                   Buffers: shared hit=14
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=431
+ Planning Time: 0.521 ms
+ Execution Time: 2.959 ms
+(50 rows)
+
+--- get_invoice inner query (BWS-2026-0042)
+                                                                                  QUERY PLAN                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=0.205..0.206 rows=1 loops=1)
+   Buffers: shared hit=14
+   InitPlan 1
+     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (actual time=0.066..0.066 rows=1 loops=1)
+           Buffers: shared hit=2
+   InitPlan 5
+     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (actual time=0.051..0.051 rows=1 loops=1)
+           Buffers: shared hit=2
+   ->  Nested Loop (actual time=0.205..0.205 rows=1 loops=1)
+         Buffers: shared hit=14
+         ->  Index Scan using invoices_number_idx on invoices i (actual time=0.116..0.116 rows=1 loops=1)
+               Index Cond: (invoice_number = 'BWS-2026-0042'::text)
+               Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+               Buffers: shared hit=7
+               SubPlan 3
+                 ->  ProjectSet (actual time=0.035..0.037 rows=1 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 4
+                 ->  ProjectSet (never executed)
+                       ->  Result (never executed)
+         ->  Index Scan using customers_pkey on customers c (actual time=0.088..0.088 rows=1 loops=1)
+               Index Cond: (id = i.customer_id)
+               Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+               Buffers: shared hit=7
+               SubPlan 7
+                 ->  ProjectSet (actual time=0.029..0.031 rows=1 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 8
+                 ->  ProjectSet (never executed)
+                       ->  Result (never executed)
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.120 ms
+ Execution Time: 0.225 ms
+(40 rows)
+
+--- list_customer_contacts inner query
+                                                                                     QUERY PLAN                                                                                      
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=0.890..0.905 rows=200 loops=1)
+   Buffers: shared hit=51
+   InitPlan 1
+     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (actual time=0.052..0.052 rows=1 loops=1)
+           Buffers: shared hit=2
+   InitPlan 5
+     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+   InitPlan 6
+     ->  Result (actual time=0.046..0.046 rows=1 loops=1)
+           Buffers: shared hit=2
+   ->  Sort (actual time=0.890..0.896 rows=200 loops=1)
+         Sort Key: c.name, cc.name
+         Sort Method: top-N heapsort  Memory: 69kB
+         Buffers: shared hit=51
+         ->  Hash Join (actual time=0.351..0.631 rows=604 loops=1)
+               Hash Cond: (cc.customer_id = c.id)
+               Buffers: shared hit=48
+               ->  Seq Scan on customer_contacts cc (actual time=0.087..0.303 rows=604 loops=1)
+                     Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (customer_id = (hashed SubPlan 4).col1))))
+                     Rows Removed by Filter: 685
+                     Buffers: shared hit=30
+                     SubPlan 3
+                       ->  ProjectSet (actual time=0.030..0.031 rows=1 loops=1)
+                             Buffers: shared hit=2
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                     SubPlan 4
+                       ->  ProjectSet (actual time=0.079..0.103 rows=60 loops=1)
+                             Buffers: shared hit=5
+                             ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               ->  Hash (actual time=0.262..0.262 rows=300 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 29kB
+                     Buffers: shared hit=18
+                     ->  Seq Scan on customers c (actual time=0.078..0.245 rows=300 loops=1)
+                           Filter: ((((InitPlan 5).col1 IS NULL) OR (InitPlan 6).col1) AND ((ANY (tenant_id = (hashed SubPlan 7).col1)) OR (ANY (id = (hashed SubPlan 8).col1))))
+                           Rows Removed by Filter: 340
+                           Buffers: shared hit=18
+                           SubPlan 7
+                             ->  ProjectSet (actual time=0.028..0.029 rows=1 loops=1)
+                                   Buffers: shared hit=2
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+                           SubPlan 8
+                             ->  ProjectSet (actual time=0.084..0.108 rows=60 loops=1)
+                                   Buffers: shared hit=5
+                                   ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=75
+ Planning Time: 0.142 ms
+ Execution Time: 0.926 ms
+(50 rows)
+
+--- search_payments inner query (unmatched_only)
+                                                                                      QUERY PLAN                                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit (actual time=1.115..1.118 rows=31 loops=1)
+   Buffers: shared hit=1088
+   InitPlan 1
+     ->  Result (actual time=0.003..0.004 rows=1 loops=1)
+   InitPlan 2
+     ->  Result (actual time=0.090..0.090 rows=1 loops=1)
+           Buffers: shared hit=2
+   ->  Sort (actual time=1.114..1.116 rows=31 loops=1)
+         Sort Key: p.received_at DESC
+         Sort Method: quicksort  Memory: 29kB
+         Buffers: shared hit=1088
+         ->  Bitmap Heap Scan on payments p (actual time=0.148..1.106 rows=31 loops=1)
+               Recheck Cond: (matched_invoice_id IS NULL)
+               Filter: ((((InitPlan 1).col1 IS NULL) OR (InitPlan 2).col1) AND ((ANY (tenant_id = (hashed SubPlan 3).col1)) OR (ANY (matched_invoice_id = (hashed SubPlan 4).col1))))
+               Rows Removed by Filter: 60
+               Heap Blocks: exact=23
+               Buffers: shared hit=1085
+               ->  Bitmap Index Scan on payments_matched_idx (actual time=0.004..0.004 rows=100 loops=1)
+                     Index Cond: (matched_invoice_id IS NULL)
+                     Buffers: shared hit=2
+               SubPlan 3
+                 ->  ProjectSet (actual time=0.042..0.044 rows=1 loops=1)
+                       Buffers: shared hit=2
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+               SubPlan 4
+                 ->  ProjectSet (actual time=0.159..0.850 rows=1035 loops=1)
+                       Buffers: shared hit=1056
+                       ->  Result (actual time=0.000..0.000 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=92
+ Planning Time: 0.117 ms
+ Execution Time: 1.133 ms
+(32 rows)
+
+--- end-to-end RPC execution times (ms), each includes its audit insert
+ list_overdue_rows 
+-------------------
+               200
+(1 row)
+
+Time: 3.976 ms
+ get_invoice_ok 
+----------------
+ true
+(1 row)
+
+Time: 1.175 ms
+ contacts_rows 
+---------------
+           200
+(1 row)
+
+Time: 2.057 ms
+ unmatched_rows 
+----------------
+             31
+(1 row)
+
+Time: 1.584 ms
+ get_customer_ok 
+-----------------
+ true
+(1 row)
+
+Time: 0.714 ms
