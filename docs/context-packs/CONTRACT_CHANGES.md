@@ -41,3 +41,24 @@ detect zero affected rows and return the `denied` envelope; they cannot rely on 
 `supabase.auth.oauth.revokeGrant` kills refresh tokens but does not touch `app.agent_grants`
 and does not invalidate an already-issued access token until `exp`. The "revoke agent" action
 must set `agent_grants.revoked_at` as well. I6 holds only through the DB check.
+
+## CC-5: tune `aud` on agent tokens so the inbound authorizer rejects them
+
+**Observed:** with default settings, both a first-party session JWT and a delegated agent token
+have `aud = authenticated`, so the AgentCore inbound authorizer accepts an agent token
+presented as a user credential. A custom access token hook that sets `aud = "ar-copilot-agent"`
+whenever `client_id` is present changes the token's `aud`; PostgREST still accepts it and the
+authorizer then refuses it (401 `Claim 'aud' value mismatch with configuration`).
+
+**Proposed:** add the hook to the contract (section 4.1, "custom claims via access token hook"):
+agent tokens carry `aud = ar-copilot-agent`; first-party tokens keep `authenticated`; the inbound
+authorizer uses `allowedAudience = ["authenticated"]` only. Do not use `allowedClients`
+(first-party tokens have no `client_id`). Decision for the humans: confirm PostgREST stays happy
+with the changed `aud` in the final project settings before freezing.
+
+## CC-6: interface note for packs 03 and 04 (not a claim change)
+
+AgentCore Identity's 3LO for a runtime is agent-initiated and needs a `CompleteResourceTokenAuth`
+call from an IAM-credentialed backend after the user returns. The app/agent interface therefore
+includes a `consent_required` result carrying an authorization URL, plus a return-URL handler.
+See `SPIKE_REPORT.md` section 5.
