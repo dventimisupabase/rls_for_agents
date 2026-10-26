@@ -1,0 +1,27 @@
+running 7 tests from ./supabase/functions/mcp/core_test.ts
+tools/list exposes exactly the contract tools, none taking tenant_id ... ok (1ms)
+tools/call forwards to the RPC with the caller's bearer, session header and publishable key ... ok (0ms)
+denials are returned as data, not MCP errors ... ok (0ms)
+a missing bearer token is rejected before any database call ... ok (0ms)
+unknown tools and extra tenant_id arguments are refused ... ok (0ms)
+a canary in a tool result is reported as a separate audit row ... ok (0ms)
+initialize advertises tools; every tool has a description ... ok (0ms)
+
+ok | 7 passed | 0 failed (4ms)
+
+running 1 test from ./supabase/functions/mcp/integration_test.ts
+MCP end to end with delegated tokens ...
+  delegated token carries sub and client_id (G2 recheck) ... ok (9ms)
+  S1 over MCP: bob's agent sees a strict subset of alice's agent ... ok (184ms)
+  I1 over MCP: a Kestrel invoice number is not_found ... ok (4ms)
+  S2 over MCP: denials are returned as data ... ok (14ms)
+  S4 over HTTP: revocation denies the very next agent call in under 1 s ...
+------- output -------
+S4 timing: revoke RPC 1.6 ms; next agent call denied 2.7 ms after revoke returned; total 4.3 ms
+----- output end -----
+  S4 over HTTP: revocation denies the very next agent call in under 1 s ... ok (12ms)
+  an agent token cannot manage grants or approve proposals ... ok (2ms)
+MCP end to end with delegated tokens ... ok (303ms)
+
+ok | 1 passed (6 steps) | 0 failed (311ms)
+
