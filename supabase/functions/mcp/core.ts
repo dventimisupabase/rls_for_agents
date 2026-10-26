@@ -54,10 +54,24 @@ async function callRpc(cfg: Config, bearer: string, session: string | null, fn: 
   const res = await f(`${cfg.supabaseUrl}/rest/v1/rpc/${fn}`, { method: "POST", headers, body: JSON.stringify(args) });
   const text = await res.text();
   if (!res.ok) {
-    // An invalid or expired token is rejected by PostgREST; surface it as an envelope error.
-    return { ok: false, error: res.status === 401 || res.status === 403 ? "unauthorized" : "error", status: res.status };
+    // PostgREST rejected the call before the function body ran (bad token, or an argument of the wrong type),
+    // so no audit row exists for it. Mark it; the caller audits it (I4).
+    const error = res.status === 401 || res.status === 403 ? "unauthorized" : res.status === 400 ? "invalid_input" : "error";
+    return { ok: false, error, [UNAUDITED]: true };
   }
   return text ? JSON.parse(text) : null;
+}
+
+const UNAUDITED = Symbol("unaudited");
+
+// I4: the runtime counts every tool call, so every call must leave exactly one audit row, including calls
+// that never reached a tool RPC. Written with the caller's own token; identity is stamped in the database.
+async function auditRejected(cfg: Config, bearer: string, session: string | null, tool: string, args: unknown, error: string) {
+  try {
+    await callRpc(cfg, bearer, session, "audit_rejected_call", { tool: tool.slice(0, 64), args, error });
+  } catch {
+    // never let auditing a rejection turn into a different failure for the caller
+  }
 }
 
 export async function handleMcp(req: Request, cfg: Config): Promise<Response> {
@@ -91,13 +105,24 @@ export async function handleMcp(req: Request, cfg: Config): Promise<Response> {
     case "tools/call": {
       const name = String(msg.params?.name ?? "");
       const tool = BY_NAME.get(name);
-      if (!tool) return rpcError(msg.id, -32602, `unknown tool: ${name}`);
       const args = (msg.params?.arguments ?? {}) as Record<string, unknown>;
+      if (!tool) {
+        await auditRejected(cfg, bearer, session, name, args, "unknown_tool");
+        return rpcError(msg.id, -32602, `unknown tool: ${name}`);
+      }
       const extra = Object.keys(args).filter((k) => !(k in tool.inputSchema.properties));
       const missing = (tool.inputSchema.required ?? []).filter((k) => !(k in args));
-      const envelope = extra.length || missing.length
-        ? { ok: false, error: "invalid_input" }
-        : await callRpc(cfg, bearer, session, name, args);
+      let envelope: Record<string | symbol, unknown>;
+      if (extra.length || missing.length) {
+        envelope = { ok: false, error: "invalid_input" };
+        await auditRejected(cfg, bearer, session, name, args, "invalid_input");
+      } else {
+        envelope = await callRpc(cfg, bearer, session, name, args);
+        if (envelope?.[UNAUDITED]) {
+          await auditRejected(cfg, bearer, session, name, args, String(envelope.error));
+          delete envelope[UNAUDITED];
+        }
+      }
       // Defense in depth for I1: the RPC already flags canaries; this scan adds its own audit row.
       if (CANARY.test(JSON.stringify(envelope))) {
         await callRpc(cfg, bearer, session, "report_canary_hit", { tool: name });

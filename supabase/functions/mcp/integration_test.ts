@@ -47,6 +47,14 @@ async function delegate(userToken: string, clientId: string): Promise<string> {
   return body.access_token;
 }
 
+// Optional direct DB access (psql) for audit-row assertions; local stack or a stage pooler URL with password.
+const DB_URL = Deno.env.get("DB_URL") ?? "";
+async function sqlScalar(q: string): Promise<string> {
+  const o = await new Deno.Command("psql", { args: [DB_URL, "-X", "-q", "-A", "-t", "-c", q], stdout: "piped", stderr: "piped" }).output();
+  if (!o.success) throw new Error(new TextDecoder().decode(o.stderr));
+  return new TextDecoder().decode(o.stdout).trim();
+}
+
 let rpcId = 0;
 async function mcp(token: string, name: string, args: Record<string, unknown>, session = "it-session") {
   const r = await fetch(`${URL_}/functions/v1/mcp`, {
@@ -138,6 +146,22 @@ Deno.test({ name: "MCP end to end with delegated tokens", ignore: !RUN, sanitize
     assertEquals((await rest(aliceAgent, "grant_agent", { client_id: crypto.randomUUID() })).reason, "human_only");
     assertEquals((await rest(aliceAgent, "revoke_agent", { client_id: clientId })).reason, "human_only");
   });
+
+  await t.step({ name: "I4: every tool call leaves exactly one audit row, including rejected ones", ignore: !DB_URL, fn: async () => {
+    const cases: [string, Record<string, unknown>][] = [
+      ["get_invoice", { invoice_number: "BWS-2026-0001" }],
+      ["get_customer", { customer_id: "not-a-uuid" }],
+      ["list_overdue_invoices", { min_days_overdue: "abc" }],
+      ["get_invoice", { invoice_number: "X", tenant_id: "t" }],
+      ["get_invoice", {}],
+      ["run_sql", { q: "select 1" }],
+    ];
+    for (const [name, args] of cases) {
+      const session = `i4-${crypto.randomUUID()}`;
+      await mcp(aliceAgent, name, args, session);
+      assertEquals(await sqlScalar(`select count(*) from app.audit_log where session_id = '${session}'`), "1", `${name} ${JSON.stringify(args)}`);
+    }
+  } });
 
   // Clean up: revoke the test grants and delete the throwaway OAuth client.
   await rest(alice.token, "revoke_agent", { client_id: clientId });

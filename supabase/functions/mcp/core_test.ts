@@ -70,13 +70,39 @@ Deno.test("a missing bearer token is rejected before any database call", async (
   assertEquals(calls.length, 0);
 });
 
-Deno.test("unknown tools and extra tenant_id arguments are refused", async () => {
-  const { fn, calls } = fakeFetch({});
-  let body = await (await handleMcp(rpcReq("tools/call", { name: "run_sql", arguments: { q: "select 1" } }), cfg(fn))).json();
-  assertEquals(body.error.code, -32602);
-  body = await (await handleMcp(rpcReq("tools/call", { name: "get_invoice", arguments: { invoice_number: "A", tenant_id: "x" } }), cfg(fn))).json();
+// I4: every tool call the runtime makes must leave exactly one audit row, including calls that never
+// reach a tool RPC (adapter rejections) or that PostgREST rejects before the function body runs.
+const rejections: [string, string, Record<string, unknown>, string][] = [
+  ["unknown tool", "run_sql", { q: "select 1" }, "unknown_tool"],
+  ["extra tenant_id argument", "get_invoice", { invoice_number: "A", tenant_id: "x" }, "invalid_input"],
+  ["missing required argument", "get_invoice", {}, "invalid_input"],
+];
+for (const [label, name, args, error] of rejections) {
+  Deno.test(`${label}: refused without calling the tool, and audited once`, async () => {
+    const { fn, calls } = fakeFetch({});
+    const body = await (await handleMcp(rpcReq("tools/call", { name, arguments: args }), cfg(fn))).json();
+    if (error === "unknown_tool") assertEquals(body.error.code, -32602);
+    else assertEquals(body.result.structuredContent, { ok: false, error: "invalid_input" });
+    assertEquals(calls.map((c) => c.url.split("/rpc/")[1]), ["audit_rejected_call"]);
+    assertEquals(JSON.parse(String(calls[0].init.body)), { tool: name, args, error });
+    assertEquals(new Headers(calls[0].init.headers).get("authorization"), "Bearer agent-token");
+    assertEquals(new Headers(calls[0].init.headers).get("x-session-id"), "sess-1");
+  });
+}
+
+Deno.test("a PostgREST type error (400) becomes invalid_input and is audited once", async () => {
+  const calls: Call[] = [];
+  const fn = ((input: string | URL | Request, init: RequestInit = {}) => {
+    calls.push({ url: String(input), init });
+    const rpc = String(input).split("/rpc/")[1];
+    return Promise.resolve(rpc === "get_customer"
+      ? new Response(JSON.stringify({ code: "22P02", message: "invalid input syntax for type uuid" }), { status: 400 })
+      : new Response(JSON.stringify({ ok: true, data: null }), { status: 200 }));
+  }) as typeof fetch;
+  const body = await (await handleMcp(rpcReq("tools/call", { name: "get_customer", arguments: { customer_id: "nope" } }), cfg(fn))).json();
   assertEquals(body.result.structuredContent, { ok: false, error: "invalid_input" });
-  assertEquals(calls.length, 0);
+  assertEquals(calls.map((c) => c.url.split("/rpc/")[1]), ["get_customer", "audit_rejected_call"]);
+  assertEquals(JSON.parse(String(calls[1].init.body)).error, "invalid_input");
 });
 
 Deno.test("a canary in a tool result is reported as a separate audit row", async () => {

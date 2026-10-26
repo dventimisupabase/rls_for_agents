@@ -6,5 +6,6 @@ cd "$(dirname "$0")/.."
 SUPABASE="${SUPABASE:-npx --yes supabase@2.122.0}"
 deno test supabase/functions/mcp/core_test.ts
 eval "$($SUPABASE status -o env 2>/dev/null | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY)=')"
-MCP_IT=1 SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+MCP_IT=1 DB_URL="${DB_URL:-postgresql://postgres:postgres@127.0.0.1:55322/postgres}" \
+  SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
   deno test -A supabase/functions/mcp/integration_test.ts
