@@ -7,4 +7,5 @@ SUPABASE="${SUPABASE:-npx --yes supabase@2.122.0}"
 rm -rf supabase/tests/database/_stage && mkdir -p supabase/tests/database/_stage
 cp supabase/stage/*.sql supabase/tests/database/_stage/
 for f in supabase/tests/database/_stage/*.sql; do mv "$f" "${f%.sql}.psql"; done  # keep pg_prove from running them as tests
-$SUPABASE test db "$@"
+# Default to the shared suite. The scorer's planted-violation tests are local-only (scripts/test-scorer.sh).
+$SUPABASE test db supabase/tests/database "$@"
