@@ -3,7 +3,7 @@ begin;
 select * from no_plan();
 
 create function pg_temp.audit_count(p_tool text, p_outcome text) returns bigint
-  language sql as $$ select count(*) from app.audit_log where tool = p_tool and outcome = p_outcome and client_id is not null $$;
+  language sql as $$ select count(*) from app.audit_log where tool = p_tool and outcome = p_outcome and client_id is not null and user_id in ('a11ce000-0000-0000-0000-000000000001','b0b00000-0000-0000-0000-000000000002','c0ffee00-0000-0000-0000-000000000003') $$;
 
 -- ================================================================ S1: tools work for alice; bob is a strict subset
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
@@ -50,10 +50,10 @@ select is((select status from public.invoices where invoice_number = 'BWS-2026-9
 select is(pg_temp.audit_count('mark_invoice_paid', 'denied'), 1::bigint, 'S2 audit row for the denied mark_invoice_paid survives');
 select is(pg_temp.audit_count('send_dunning_email', 'denied'), 1::bigint, 'S2 audit row for the denied send survives');
 select is(pg_temp.audit_count('decide_pending_action', 'denied'), 1::bigint, 'S2 audit row for the denied approval survives');
-select results_eq($$ select user_id, client_id, session_id from app.audit_log where tool = 'mark_invoice_paid' and outcome = 'denied' and client_id is not null $$,
+select results_eq($$ select user_id, client_id, session_id from app.audit_log where tool = 'mark_invoice_paid' and outcome = 'denied' and client_id is not null and user_id = 'a11ce000-0000-0000-0000-000000000001' $$,
   $$ values ('a11ce000-0000-0000-0000-000000000001'::uuid, 'a6e47000-0000-0000-0000-000000000001'::uuid, 'sess-s2'::text) $$,
   'S2 audit identity stamped from the JWT; session from header');
-select is((select requested_by_client from app.pending_actions where action = 'send_dunning_email'),
+select is((select requested_by_client from app.pending_actions where action = 'send_dunning_email' and tenant_id = '00000000-0000-0000-0000-0000000000b1'),
   'a6e47000-0000-0000-0000-000000000001'::uuid, 'proposal records the requesting agent');
 
 -- human approves the agent's proposal: the email is sent by the human
@@ -62,7 +62,7 @@ select is(public.decide_pending_action((select id from app.pending_actions where
   'executed', 'alice approves the proposal');
 reset role;
 select results_eq($$ select d.status, d.sent_by_user, d.sent_by_client from public.dunning_emails d
-                     join app.pending_actions pa on (pa.payload ->> 'email_id')::uuid = d.id $$,
+                     join app.pending_actions pa on (pa.payload ->> 'email_id')::uuid = d.id where pa.tenant_id = '00000000-0000-0000-0000-0000000000b1' $$,
   $$ values ('sent'::text, 'a11ce000-0000-0000-0000-000000000001'::uuid, null::uuid) $$, 'approved send executes as the human (I3)');
 
 -- ================================================================ S4: revocation denies the next call

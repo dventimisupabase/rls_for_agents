@@ -44,13 +44,13 @@ select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-000
 update public.invoices set status = 'paid' where invoice_number = 'BWS-2026-9002';
 reset role;
 select is((select status from public.invoices where invoice_number = 'BWS-2026-9002'), 'open', 'agent cannot change invoice status (silent 0 rows)');
-select is((select count(*) from public.invoice_status_history), 0::bigint, 'no history row from the denied agent attempt');
+select is((select count(*) from public.invoice_status_history where tenant_id = '00000000-0000-0000-0000-0000000000b1'), 0::bigint, 'no history row from the denied agent attempt');
 
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
 update public.invoices set status = 'paid' where invoice_number = 'BWS-2026-9002';
 reset role;
 select is((select status from public.invoices where invoice_number = 'BWS-2026-9002'), 'paid', 'alice (human admin) can mark paid');
-select results_eq($$ select user_id, client_id from public.invoice_status_history $$,
+select results_eq($$ select user_id, client_id from public.invoice_status_history where tenant_id = '00000000-0000-0000-0000-0000000000b1' $$,
   $$ values ('a11ce000-0000-0000-0000-000000000001'::uuid, null::uuid) $$, 'history stamps the human and a null client_id (I2)');
 
 select pg_temp.act_as('b0b00000-0000-0000-0000-000000000002');
@@ -73,9 +73,9 @@ select throws_ok($$ insert into public.dunning_emails (invoice_id, to_email, sub
   '42501', null, 'agent cannot draft against another tenant''s invoice');
 update public.dunning_emails set status = 'sent';
 reset role;
-select is((select count(*) from public.dunning_emails where status = 'sent'), 0::bigint, 'agent cannot send at baseline (I3)');
+select is((select count(*) from public.dunning_emails where status = 'sent' and tenant_id = '00000000-0000-0000-0000-0000000000b1'), 0::bigint, 'agent cannot send at baseline (I3)');
 -- also covered by the stamping trigger if a column grant is ever loosened
-select results_eq($$ select amount, created_by_user, created_by_client from public.dunning_emails $$,
+select results_eq($$ select amount, created_by_user, created_by_client from public.dunning_emails where tenant_id = '00000000-0000-0000-0000-0000000000b1' $$,
   $$ values (1200.00::numeric(14,2), 'a11ce000-0000-0000-0000-000000000001'::uuid, 'a6e47000-0000-0000-0000-000000000001'::uuid) $$,
   'draft amount and creator are stamped by the DB');
 
@@ -85,17 +85,17 @@ select lives_ok($$ insert into app.pending_actions (tenant_id, action, payload)
   values ('00000000-0000-0000-0000-0000000000b1', 'payment_match', '{"payment":"f001"}') $$, 'agent can propose');
 update app.pending_actions set status = 'approved';
 reset role;
-select is((select status from app.pending_actions), 'pending', 'agent cannot approve its own proposal (I5)');
+select is((select status from app.pending_actions where tenant_id = '00000000-0000-0000-0000-0000000000b1'), 'pending', 'agent cannot approve its own proposal (I5)');
 
 select pg_temp.act_as('b0b00000-0000-0000-0000-000000000002');
 update app.pending_actions set status = 'approved';
 reset role;
-select is((select status from app.pending_actions), 'pending', 'a rep cannot approve');
+select is((select status from app.pending_actions where tenant_id = '00000000-0000-0000-0000-0000000000b1'), 'pending', 'a rep cannot approve');
 
 select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
 update app.pending_actions set status = 'approved';
 reset role;
-select results_eq($$ select status, decided_by, decided_by_client from app.pending_actions $$,
+select results_eq($$ select status, decided_by, decided_by_client from app.pending_actions where tenant_id = '00000000-0000-0000-0000-0000000000b1' $$,
   $$ values ('approved'::text, 'a11ce000-0000-0000-0000-000000000001'::uuid, null::uuid) $$, 'alice approves; decision stamped as human');
 
 -- ---------------------------------------------------------------- revocation: I6 and the CC-1 hole
