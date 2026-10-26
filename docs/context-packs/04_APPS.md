@@ -44,11 +44,11 @@ Users: Alice (admin) and Bob (rep) at Brightwater Supply.
 - **Mobile-first.** People will play from their phones in the audience.
 
 ## Acceptance criteria
-| ID | Criterion |
-|---|---|
-| P1 | Stage beats 1–5 can be driven entirely from the AR app in stage mode. |
-| P2 | Denied tool calls and new proposals are visually unmistakable from 10 m. |
-| P3 | Realtime approvals appear in under 2 s. |
-| P4 | Arena: QR code → signed in → first prompt in under 60 s on a phone. |
+| ID | Criterion                                                                                                           |
+|----|---------------------------------------------------------------------------------------------------------------------|
+| P1 | Stage beats 1–5 can be driven entirely from the AR app in stage mode.                                               |
+| P2 | Denied tool calls and new proposals are visually unmistakable from 10 m.                                            |
+| P3 | Realtime approvals appear in under 2 s.                                                                             |
+| P4 | Arena: QR code → signed in → first prompt in under 60 s on a phone.                                                 |
 | P5 | No authorization logic in the apps (review: removing every client-side check changes nothing about what's allowed). |
-| P6 | No raw prompts from other players are ever displayed. |
+| P6 | No raw prompts from other players are ever displayed.                                                               |

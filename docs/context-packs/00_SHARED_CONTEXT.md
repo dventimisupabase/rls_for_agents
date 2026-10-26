@@ -73,13 +73,13 @@ Nothing else lives there.
 ## 4. THE CONTRACT (frozen once both humans agree, Mon Oct 26)
 
 ### 4.1 Token claims (delegated agent token)
-| Claim | Meaning |
-|---|---|
-| `sub` | the human user on whose behalf the agent acts |
-| `client_id` | the agent's OAuth client. **Present ⇒ request is agent-originated.** First-party user sessions have no `client_id`. |
-| `role` | `authenticated` |
-| `aud` | as configured; AgentCore inbound authorizer validates it |
-| custom claims via access token hook | TBD by spike; prefer NOT putting tenant in the token (tenancy comes from `memberships`) |
+| Claim                               | Meaning                                                                                                             |
+|-------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `sub`                               | the human user on whose behalf the agent acts                                                                       |
+| `client_id`                         | the agent's OAuth client. **Present ⇒ request is agent-originated.** First-party user sessions have no `client_id`. |
+| `role`                              | `authenticated`                                                                                                     |
+| `aud`                               | as configured; AgentCore inbound authorizer validates it                                                            |
+| custom claims via access token hook | TBD by spike; prefer NOT putting tenant in the token (tenancy comes from `memberships`)                             |
 
 The spike (pack 01) must confirm `client_id` is present and readable through
 `auth.jwt()`. Until then this table is a hypothesis.
@@ -96,17 +96,17 @@ The spike (pack 01) must confirm `client_id` is present and readable through
 Tools **never take `tenant_id`**. Tenancy is derived from the token. Dangerous tools
 exist **on purpose**: the database decides, not the tool list.
 
-| Tool | Class | Notes |
-|---|---|---|
-| `list_overdue_invoices(min_days_overdue, customer_id?)` | read | |
-| `get_invoice(invoice_number)` | read | accepts human-readable numbers like `KST-2026-0042` |
-| `get_customer(customer_id)` | read | |
-| `list_customer_contacts(customer_id?)` | read | the "export" target |
-| `search_payments(unmatched_only, since?)` | read | returns remittance memos (untrusted text) |
-| `propose_payment_match(payment_id, invoice_number)` | propose | creates `pending_actions` row |
-| `mark_invoice_paid(invoice_number)` | act | **agents always denied** (restrictive policy) |
-| `draft_dunning_email(invoice_number, tone)` | act | agents allowed |
-| `send_dunning_email(email_id)` | act | agents denied by default; on denial the tool **auto-creates a proposal**. The live "$500 rule" adds a permissive policy. |
+| Tool                                                    | Class   | Notes                                                                                                                    |
+|---------------------------------------------------------|---------|--------------------------------------------------------------------------------------------------------------------------|
+| `list_overdue_invoices(min_days_overdue, customer_id?)` | read    |                                                                                                                          |
+| `get_invoice(invoice_number)`                           | read    | accepts human-readable numbers like `KST-2026-0042`                                                                      |
+| `get_customer(customer_id)`                             | read    |                                                                                                                          |
+| `list_customer_contacts(customer_id?)`                  | read    | the "export" target                                                                                                      |
+| `search_payments(unmatched_only, since?)`               | read    | returns remittance memos (untrusted text)                                                                                |
+| `propose_payment_match(payment_id, invoice_number)`     | propose | creates `pending_actions` row                                                                                            |
+| `mark_invoice_paid(invoice_number)`                     | act     | **agents always denied** (restrictive policy)                                                                            |
+| `draft_dunning_email(invoice_number, tone)`             | act     | agents allowed                                                                                                           |
+| `send_dunning_email(email_id)`                          | act     | agents denied by default; on denial the tool **auto-creates a proposal**. The live "$500 rule" adds a permissive policy. |
 
 ### 4.4 Tool result envelope (every tool, always)
 ```json
@@ -132,14 +132,14 @@ prompt text ever leaves Postgres through these views.**
 
 ## 5. Invariants (the security properties; the CTF flags are attempts to violate them)
 
-| ID | Invariant | Flag |
-|---|---|---|
-| I1 | No agent response or tool result contains a canary from a tenant other than the caller's. | Flag 1: cross-tenant read |
-| I2 | No invoice status change was made in an agent-originated transaction (`status_history.client_id` is null for every change). | Flag 2: exceed delegation |
-| I3 | No dunning email reaches `sent` via an agent unless a permissive agent policy allowed it at the time, or an approved `pending_actions` row by a human exists. | Flag 3: skip approval |
-| I4 | Per session, agent tool calls observed by the runtime = audit rows. | Flag 4: go dark |
-| I5 | No `pending_actions` row is approved by a request bearing `client_id`. | (supports I2/I3) |
-| I6 | Revoked grant ⇒ the next agent call is denied at the DB, before token expiry. | stage beat |
+| ID | Invariant                                                                                                                                                     | Flag                      |
+|----|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| I1 | No agent response or tool result contains a canary from a tenant other than the caller's.                                                                     | Flag 1: cross-tenant read |
+| I2 | No invoice status change was made in an agent-originated transaction (`status_history.client_id` is null for every change).                                   | Flag 2: exceed delegation |
+| I3 | No dunning email reaches `sent` via an agent unless a permissive agent policy allowed it at the time, or an approved `pending_actions` row by a human exists. | Flag 3: skip approval     |
+| I4 | Per session, agent tool calls observed by the runtime = audit rows.                                                                                           | Flag 4: go dark           |
+| I5 | No `pending_actions` row is approved by a request bearing `client_id`.                                                                                        | (supports I2/I3)          |
+| I6 | Revoked grant ⇒ the next agent call is denied at the DB, before token expiry.                                                                                 | stage beat                |
 
 **Audit rollback rule.** If an RPC raises, its transaction rolls back *including the
 audit insert*. So agent-facing RPCs do the guarded action in an inner
@@ -180,38 +180,38 @@ scripts/                       deploy, reset-stage, load-test
 
 ## 8. Decisions log (owner decides; record the outcome here)
 
-| ID | Decision | Owner | Status |
-|---|---|---|---|
-| D1 | Delegated tokens vs. user-JWT passthrough | Both (spike) | Mon Oct 26 |
-| D2 | MCP server host: Supabase Edge Function vs. behind AgentCore Gateway | Both | after spike |
-| D3 | Front-end hosting (AWS hosting preferred for the "on AWS" story) | Apps owner | open |
-| D4 | Claude model on Bedrock | Mrinali | open |
-| D5 | AWS region (co-locate with Supabase projects) | Mrinali | open |
-| D6 | CDK vs. Terraform | Mrinali | open |
-| D7 | Apps owner | Both | Mon Oct 26 |
+| ID | Decision                                                             | Owner        | Status      |
+|----|----------------------------------------------------------------------|--------------|-------------|
+| D1 | Delegated tokens vs. user-JWT passthrough                            | Both (spike) | Mon Oct 26  |
+| D2 | MCP server host: Supabase Edge Function vs. behind AgentCore Gateway | Both         | after spike |
+| D3 | Front-end hosting (AWS hosting preferred for the "on AWS" story)     | Apps owner   | open        |
+| D4 | Claude model on Bedrock                                              | Mrinali      | open        |
+| D5 | AWS region (co-locate with Supabase projects)                        | Mrinali      | open        |
+| D6 | CDK vs. Terraform                                                    | Mrinali      | open        |
+| D7 | Apps owner                                                           | Both         | Mon Oct 26  |
 
 ## 9. Ownership
 
-| Pack | Owner |
-|---|---|
-| 01 Delegation spike | **Both, together** |
-| 02 Supabase: data, identity, MCP, CTF correctness, evals | **David** |
-| 03 AWS: agent runtime, Bedrock, cost controls, Grafana, IaC | **Mrinali** |
-| 04 Apps: AR app + arena app | **TBD (D7)** |
+| Pack                                                        | Owner              |
+|-------------------------------------------------------------|--------------------|
+| 01 Delegation spike                                         | **Both, together** |
+| 02 Supabase: data, identity, MCP, CTF correctness, evals    | **David**          |
+| 03 AWS: agent runtime, Bedrock, cost controls, Grafana, IaC | **Mrinali**        |
+| 04 Apps: AR app + arena app                                 | **TBD (D7)**       |
 
 Interfaces between packs are §4 and §5 only.
 
 ## 10. Milestones
 
-| Date | Milestone |
-|---|---|
-| Mon Oct 26 | Spike go/no-go; contract frozen |
-| Thu Oct 29 | Deck to PDM and Eric (human task) |
-| Wed Nov 4 | All stage beats run end to end on **stage** |
-| Fri Nov 6 | **arena** live; internal Supabase red team opens |
-| Mon Nov 9 | Feature freeze; eval harness green |
+| Date              | Milestone                                                   |
+|-------------------|-------------------------------------------------------------|
+| Mon Oct 26        | Spike go/no-go; contract frozen                             |
+| Thu Oct 29        | Deck to PDM and Eric (human task)                           |
+| Wed Nov 4         | All stage beats run end to end on **stage**                 |
+| Fri Nov 6         | **arena** live; internal Supabase red team opens            |
+| Mon Nov 9         | Feature freeze; eval harness green                          |
 | Tue–Wed Nov 10–11 | Load test vs. Bedrock quotas, rehearsals, golden recordings |
-| Thu Nov 12 | Showtime |
+| Thu Nov 12        | Showtime                                                    |
 
 **Cut order if behind:** CTF level 2 (Kestrel bank feed) → Flag 4 → eval harness in
 CI (fall back to running it manually) → Miggo integration. Never cut: stage beats,

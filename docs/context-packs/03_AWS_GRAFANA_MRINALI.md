@@ -90,16 +90,16 @@ importing them into a forker's own Grafana.
   creating their own Supabase project).
 
 ## Acceptance criteria
-| ID | Criterion |
-|---|---|
-| A1 | Agent completes stage beats 1–5 against **stage**, streaming, with the delegated token. |
-| A2 | Agent has no data path except MCP tools (review the tool list and IAM permissions). |
-| A3 | Guardrails blocks a clearly abusive prompt; a pure injection attempt **reaches** the agent. |
-| A4 | Per-player limits and the kill switch work; the kill switch can be flipped in < 30 s from a phone. |
+| ID | Criterion                                                                                                               |
+|----|-------------------------------------------------------------------------------------------------------------------------|
+| A1 | Agent completes stage beats 1–5 against **stage**, streaming, with the delegated token.                                 |
+| A2 | Agent has no data path except MCP tools (review the tool list and IAM permissions).                                     |
+| A3 | Guardrails blocks a clearly abusive prompt; a pure injection attempt **reaches** the agent.                             |
+| A4 | Per-player limits and the kill switch work; the kill switch can be flipped in < 30 s from a phone.                      |
 | A5 | Load test: 150 simulated players for 15 min, no throttling errors above 1%, p95 first token under 4 s. Quotas recorded. |
-| A6 | Scoreboard readable at 10 m on a projector; shows no raw prompts; refreshes ≤ 10 s. |
-| A7 | Ops dashboard joins a session's CloudWatch trace to its audit rows. |
-| A8 | `stage` and `arena` deploy from one codebase with one command each. |
+| A6 | Scoreboard readable at 10 m on a projector; shows no raw prompts; refreshes ≤ 10 s.                                     |
+| A7 | Ops dashboard joins a session's CloudWatch trace to its audit rows.                                                     |
+| A8 | `stage` and `arena` deploy from one codebase with one command each.                                                     |
 
 ## Order of work
 Spike (with David) → productionize identity → agent with tools on **stage** (Nov

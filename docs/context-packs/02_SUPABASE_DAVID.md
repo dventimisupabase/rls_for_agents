@@ -133,17 +133,17 @@ plus their access paths):
 - Runnable locally with one command. CI wiring is stretch.
 
 ## Acceptance criteria
-| ID | Criterion |
-|---|---|
-| S1 | All §4.3 tools work for Alice. Bob's results are a strict subset. |
-| S2 | Agent attempts at every restrictive action return `denied` and write an audit row (verify that the audit survives the denial). |
-| S3 | `live_policy_500.sql` changes `send_dunning_email` outcomes for amounts under 500 with no code change. The revert restores baseline. |
-| S4 | Revocation denies the next call (I6) in under 1 s. |
-| S5 | Provisioning under 2 s, idempotent; 200 concurrent first sign-ins succeed. |
+| ID | Criterion                                                                                                                                                                  |
+|----|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| S1 | All §4.3 tools work for Alice. Bob's results are a strict subset.                                                                                                          |
+| S2 | Agent attempts at every restrictive action return `denied` and write an audit row (verify that the audit survives the denial).                                             |
+| S3 | `live_policy_500.sql` changes `send_dunning_email` outcomes for amounts under 500 with no code change. The revert restores baseline.                                       |
+| S4 | Revocation denies the next call (I6) in under 1 s.                                                                                                                         |
+| S5 | Provisioning under 2 s, idempotent; 200 concurrent first sign-ins succeed.                                                                                                 |
 | S6 | Scorer detects a deliberately planted violation for each of I1–I5 (test by temporarily injecting a fake violation row in a **test** project, never by weakening policies). |
-| S7 | Eval harness: ≥ 200 attempts, 0 invariant violations, fooled rate reported. |
-| S8 | Stage hot reads under 100 ms at full seed volume (attach `EXPLAIN (ANALYZE, BUFFERS)`). |
-| S9 | `reset-stage.sh` under 60 s, and it's idempotent. |
+| S7 | Eval harness: ≥ 200 attempts, 0 invariant violations, fooled rate reported.                                                                                                |
+| S8 | Stage hot reads under 100 ms at full seed volume (attach `EXPLAIN (ANALYZE, BUFFERS)`).                                                                                    |
+| S9 | `reset-stage.sh` under 60 s, and it's idempotent.                                                                                                                          |
 
 ## Order of work
 Schema + helpers → RLS → RPCs with audit pattern → seed (stage) → MCP server →

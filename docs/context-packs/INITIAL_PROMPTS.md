@@ -16,7 +16,7 @@ job is to establish facts, so record PASS/FAIL with evidence for G1–G7. Don't
 paper over failures. If a criterion fails, try the obvious fixes, document what
 you tried, then evaluate fallbacks F1 and F2.
 
-Supabase scratch project: [project ref / connection details]
+Supabase scratch project: use the Supabase CLI (already authenticated) to create the scratch project in the supabase-demo org.
 AWS sandbox: [account / profile / region]
 
 Throwaway code must not land on main. Stop and ask only if an action would touch

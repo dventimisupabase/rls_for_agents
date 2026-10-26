@@ -32,15 +32,15 @@ traveled. Find the sharp edges now.
    authorize, token, and discovery endpoints (PKCE, auth code).
 
 ## Go/no-go criteria (record PASS/FAIL + evidence for each)
-| ID | Criterion |
-|---|---|
-| G1 | AgentCore's 3LO flow reaches the Supabase consent page, and the user's approval returns a token to the vault. |
-| G2 | PostgREST accepts the delegated token. `whoami` returns the human's `sub` **and** a non-null `client_id`. |
-| G3 | The same `update_note` call succeeds for the user directly and is **denied** for the agent. |
-| G4 | Setting `revoked_at` makes the agent's very next call fail, before token expiry. |
+| ID | Criterion                                                                                                                              |
+|----|----------------------------------------------------------------------------------------------------------------------------------------|
+| G1 | AgentCore's 3LO flow reaches the Supabase consent page, and the user's approval returns a token to the vault.                          |
+| G2 | PostgREST accepts the delegated token. `whoami` returns the human's `sub` **and** a non-null `client_id`.                              |
+| G3 | The same `update_note` call succeeds for the user directly and is **denied** for the agent.                                            |
+| G4 | Setting `revoked_at` makes the agent's very next call fail, before token expiry.                                                       |
 | G5 | Token lifetime and refresh behavior are documented: TTL, whether refresh works, and whether refresh tokens can be revoked server-side. |
-| G6 | The inbound authorizer accepts first-party Supabase session JWTs (check `aud` and `client_id` validation settings). |
-| G7 | Time from the user clicking "Connect agent" to the agent's first call is under 10 s. (We demo this live.) |
+| G6 | The inbound authorizer accepts first-party Supabase session JWTs (check `aud` and `client_id` validation settings).                    |
+| G7 | Time from the user clicking "Connect agent" to the agent's first call is under 10 s. (We demo this live.)                              |
 
 **GO** = G1–G4 + G6 pass. G5 and G7 are informational but must be recorded.
 
