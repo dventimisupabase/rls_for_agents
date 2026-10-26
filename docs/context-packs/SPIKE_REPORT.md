@@ -191,7 +191,11 @@ AWS (us-west-2):
 12. Not tested: `allowedClients`/`customClaims` authorizer options, refresh from inside the runtime,
     the token vault's own refresh behavior after 3600 s, dynamic client registration (left disabled).
 
-## 9. Sandbox resources created and still running (for teardown, awaiting approval)
+## 9. Sandbox resources (torn down 2026-10-26)
+
+All AWS and Supabase resources below were deleted after the spike and verified gone. Kept locally:
+the `ar-sandbox` AWS profile and a private backup of the throwaway code and evidence.
+
 
 AWS (account `<sandbox-account>`, us-west-2): AgentCore runtime `ar_spike_agent`, OAuth2 credential
 provider `supabase-ar-agent` (and its Secrets Manager secret), workload identity `ar-spike-app`,
