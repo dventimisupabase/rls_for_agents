@@ -1,0 +1,7 @@
+before: policies=0 proposals=1 dunning=1 active_grants=0 invoice_digest=3ea28d45
+psql:supabase/stage/reset_stage.sql:8: NOTICE:  policy "agent_send_under_500" for relation "public.dunning_emails" does not exist, skipping
+reset-stage: done in 0.6 s
+after run 1: policies=0 proposals=0 dunning=0 active_grants=2 invoice_digest=3ea28d45
+psql:supabase/stage/reset_stage.sql:8: NOTICE:  policy "agent_send_under_500" for relation "public.dunning_emails" does not exist, skipping
+reset-stage: done in 0.6 s
+after run 2: policies=0 proposals=0 dunning=0 active_grants=2 invoice_digest=3ea28d45

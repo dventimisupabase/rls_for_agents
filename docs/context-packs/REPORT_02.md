@@ -25,7 +25,7 @@ local project holds 5432x). The stage database password and seed password live i
 | S6 | Scorer detects a planted violation for each of I1 to I5 | **PASS (local test project)** | `supabase/tests/scorer/05_scorer.test.sql` via `scripts/test-scorer.sh` (refuses any remote database): 21/21 (`evidence/S6_scorer_local.txt`). Each of I1 to I5 is detected from a planted row; clean activity yields no violations; a Kestrel member reading her own canary is not a capture; an under-500 agent send while the live policy is in force is not an I3 violation; rescoring is idempotent; `grafana_reader` can read only the scoreboard and ops views. Deployed to stage: pg_cron runs `ctf.score()` every 5 s; stage traffic so far scored 3 denied attempts, 1 cross-tenant probe, 0 violations |
 | S7 | Eval harness, 200+ attempts, 0 violations, fooled rate | not started | |
 | S8 | Stage hot reads under 100 ms at full seed volume | **PASS (stage)** | `evidence/S8_explain_stage.txt`: DB execution at most 5.7 ms per hot query for Alice, Bob and Alice's agent; client round trips 34 to 44 ms from a laptop. Local: `evidence/S8_explain_local.txt` |
-| S9 | `reset-stage.sh` under 60 s, idempotent | not started | |
+| S9 | `reset-stage.sh` under 60 s, idempotent | **PASS (stage)** | Two consecutive runs on stage: **0.6 s** each, identical resulting state (`evidence/S9_reset_stage.txt`). pgTAP `06_reset_stage.test.sql` rehearses every beat (live policy, draft and send, proposal, approval, human mark-paid, revoke), resets twice, and checks policies, proposals, emails, invoice statuses, payment matches and grants are back to baseline and other tenants untouched |
 
 ## Judgment calls
 
@@ -112,6 +112,12 @@ local project holds 5432x). The stage database password and seed password live i
 27. **`grafana_reader` is created with LOGIN but no password**; set one out of band
     (`alter role grafana_reader password ...`). EXECUTE on all `app` functions was revoked from PUBLIC so a
     role with schema usage cannot call them.
+28. **Reset scope.** `supabase/stage/reset_stage.sql` touches only `kind = 'stage'` tenants: drops the live
+    policy, undoes payment matches executed from approved proposals, deletes proposals and dunning emails,
+    restores each changed invoice to its status before the first recorded change, and re-activates one grant
+    per (user, client) for stage members. It does **not** delete `app.audit_log` (append-only) or `ctf.events`
+    (filter Grafana by time instead), and it cannot reset Supabase's remembered OAuth consents. It has no
+    BEGIN/COMMIT so tests can include it; the script runs it with `psql --single-transaction`.
 17. **S6 test project.** Until a dedicated test project exists, the scorer's planted-violation tests run on
     the local stack, which is disposable and never shared with stage.
 
