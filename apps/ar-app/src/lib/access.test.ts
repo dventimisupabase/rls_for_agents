@@ -58,7 +58,7 @@ describe("connectAgent", () => {
     const calls: string[] = [];
     const agent = { connect: () => { calls.push("connect"); return stream(replies.shift() ?? []); } };
     const oauth = { revokeGrant: async (o: { clientId: string }) => { calls.push(`revokeGrant:${o.clientId}`); return { data: null, error: null }; } };
-    const grants = async () => activeFor.map((c) => ({ client_id: c, client_name: null, active: true, granted_at: "", revoked_at: null }));
+    const grants = async () => activeFor.map((c) => ({ id: `g-${c}`, client_id: c, client_name: null, active: true, granted_at: "", revoked_at: null }));
     return { agent, oauth, grants, calls };
   }
 

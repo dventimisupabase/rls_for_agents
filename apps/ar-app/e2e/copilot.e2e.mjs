@@ -175,6 +175,22 @@ try {
   ok("beat 5: Alice revokes (both halves); her agent's next call is DENIED agent_grant_revoked; Bob's still works");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/P2_stage_revoked_1920.png` });
 
+  // The revoked grant's page: what the agent did with the access, and the refused call after revocation
+  const grant = sql(`select g.id || '|' || (select count(*) from app.audit_log l where l.user_id = g.user_id and l.client_id = g.client_id
+                       and l.at >= g.granted_at and l.at < g.revoked_at)
+                     from app.agent_grants g join auth.users u on u.id = g.user_id join auth.oauth_clients c on c.id = g.client_id
+                     where u.email = 'alice@brightwater.example' and c.client_name = 'ar-copilot-agent (local dev)'
+                     order by g.granted_at desc limit 1`).split("|");
+  await page.click(`[data-grant-id='${grant[0]}'] >> text=Activity`);
+  await page.waitForSelector("[data-testid=grant-totals]");
+  assert.equal(await page.textContent("[data-testid=grant-calls]"), grant[1]);
+  assert.equal(await page.textContent("[data-testid=grant-after]"), "1");
+  assert.match(await page.textContent("tr.after-revocation[data-tool=get_invoice]"), /agent_grant_revoked/);
+  assert.match(await page.textContent("[data-testid=grant-activity] tr[data-tool=mark_invoice_paid]"), /agent_not_permitted/);
+  assert.equal(await page.locator("[data-testid=grant-proposals] tbody tr").count(), 2);
+  ok("grant page: the rehearsal's calls, both proposals, and the refused call after revocation", `${grant[1]} calls`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/P_grant_activity_1920.png` });
+
   // After the rehearsal the stage reset re-activates the database grant but cannot restore the OAuth consent.
   psqlFile("supabase/stage/reset_stage.sql");
   await page.goto("http://localhost:3000/agent");

@@ -115,6 +115,25 @@ export async function pendingActions(view: "pending" | "decided") {
   return must(await sb.rpc("list_pending_actions", { view })) as PendingAction[];
 }
 
+export type AgentCall = {
+  at: string; session_id: string | null; tool: string; args: Record<string, unknown>;
+  outcome: "ok" | "denied" | "error"; reason: string | null; rows_returned: number | null; after_revocation: boolean;
+};
+export type AgentActivity = {
+  grant: { id: string; client_id: string; client_name: string | null; active: boolean; granted_at: string; revoked_at: string | null };
+  totals: { calls: number; denied: number; errors: number; after_revocation: number; proposals: number };
+  count: number;
+  calls: AgentCall[];
+  proposals: { id: string; action: PendingAction["action"]; status: string; created_at: string; invoice_id: string | null; invoice_number: string | null }[];
+};
+// What my agent did under one grant (from the audit log). null when the grant isn't mine or doesn't exist.
+export async function agentActivity(grantId: string, page: number) {
+  const env = must(await sb.rpc("my_agent_activity", { grant_id: grantId, page })) as Envelope;
+  if (env.ok) return env.data as AgentActivity;
+  if (env.error === "not_found") return null;
+  throw new Error(env.reason ?? env.error ?? "unavailable");
+}
+
 // The contract envelope (section 4.4): denials come back as data, not errors.
 export type Envelope = { ok: boolean; data?: unknown; denied?: boolean; reason?: string; error?: string };
 export async function decide(actionId: string, decision: "approved" | "rejected") {

@@ -67,6 +67,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover td { background: #f9fafb; }
 .pill-info { background: #eff8ff; color: var(--info); } .pill-muted { background: #f2f4f7; color: var(--muted); }
 .pill-agent { background: #f4f3ff; color: var(--agent); text-transform: none; }
 .pill-proposal { background: #fff6ed; color: #c4320a; }
+.pill-denied { background: #fef3f2; color: var(--late); }
 
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
 .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.25rem; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 0.25rem; }
@@ -168,3 +169,8 @@ html.stage .chip { grid-template-columns: 1fr; }
 html.stage .chip-badges { grid-column: 1; grid-row: auto; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.3rem; }
 .chip-rows { grid-column: 1 / -1; font-weight: 700; font-variant-numeric: tabular-nums; }
 html.stage .chip-rows { font-size: 1.6rem; }
+
+/* ---- agent grant activity ---- */
+tr.session-head td { background: #f9fafb; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 0.6rem; }
+td.args { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; color: #344054; max-width: 28rem; overflow-wrap: anywhere; }
+tr.after-revocation td { background: #fffbfa; }

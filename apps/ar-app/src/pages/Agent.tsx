@@ -1,6 +1,6 @@
 // Agent access: grant status, Connect agent (3LO through the AgentClient), Revoke agent access (stage beat 5).
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { agent, getJwt, openConsent } from "../agent.ts";
 import { connectAgent, revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
 import { timeAgo } from "../lib/format.ts";
@@ -94,8 +94,8 @@ export function AgentAccess() {
         {active.map((g) => (
           <div key={g.client_id} className="agent-grant" data-status="active">
             <div>
-              <Pill tone="ok">active</Pill> <strong>{g.client_name ?? g.client_id}</strong>
-              <span className="muted"> · connected {timeAgo(g.granted_at)}</span>
+              <Pill tone="ok">active</Pill> <strong><Link to={`/agent/grants/${g.id}`}>{g.client_name ?? g.client_id}</Link></strong>
+              <span className="muted"> · connected {timeAgo(g.granted_at)} · </span><Link to={`/agent/grants/${g.id}`}>Activity</Link>
             </div>
             <button className="danger" disabled={busy} onClick={() => revoke(g)}>Revoke agent access</button>
           </div>
@@ -107,9 +107,9 @@ export function AgentAccess() {
         <section className="panel">
           <h2>History</h2>
           <table>
-            <thead><tr><th>Agent</th><th>Connected</th><th>Revoked</th></tr></thead>
-            <tbody>{history.map((g, i) => (
-              <tr key={i}><td>{g.client_name ?? <span className="muted">deleted client</span>}</td><td>{timeAgo(g.granted_at)}</td><td>{g.revoked_at && timeAgo(g.revoked_at)}</td></tr>
+            <thead><tr><th>Agent</th><th>Connected</th><th>Revoked</th><th></th></tr></thead>
+            <tbody>{history.map((g) => (
+              <tr key={g.id} data-grant-id={g.id}><td>{g.client_name ?? <span className="muted">deleted client</span>}</td><td>{timeAgo(g.granted_at)}</td><td>{g.revoked_at && timeAgo(g.revoked_at)}</td><td><Link to={`/agent/grants/${g.id}`}>Activity</Link></td></tr>
             ))}</tbody>
           </table>
         </section>

@@ -34,7 +34,7 @@ export async function revokeBoth(sb: AccessClient, clientId: string): Promise<{ 
 }
 
 export type AgentGrant = {
-  client_id: string; client_name: string | null; active: boolean; granted_at: string; revoked_at: string | null;
+  id: string; client_id: string; client_name: string | null; active: boolean; granted_at: string; revoked_at: string | null;
 };
 
 // "Connect agent". If the agent says it is connected but this person has no active database grant for

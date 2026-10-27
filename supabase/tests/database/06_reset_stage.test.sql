@@ -47,6 +47,9 @@ select is((select invoices from after1), (select invoices from before), 'S9 invo
 select is((select payments from after1), (select payments from before), 'S9 payment matches restored');
 select is((select count(*) from app.agent_grants where user_id = 'a11ce000-0000-0000-0000-000000000001' and revoked_at is null), 1::bigint,
   'S9 alice''s agent grant is active again');
+select is((select count(*) from app.agent_grants where user_id = 'a11ce000-0000-0000-0000-000000000001'
+           and client_id = 'a6e47000-0000-0000-0000-000000000001' and revoked_at is not null), 1::bigint,
+  'S9 the revoked grant stays in history (the reset adds a new grant instead of un-revoking it)');
 select is((select count(*) from app.agent_grants where client_id = 'de1e7ed0-0000-0000-0000-000000000001' and revoked_at is null), 0::bigint,
   'S9 a deleted client''s grant stays revoked');
 select is((select count(*) from app.agent_grants where client_id = '0ddba110-0000-0000-0000-000000000001' and revoked_at is null), 0::bigint,

@@ -6,6 +6,7 @@ import { ConsentPage } from "@ar/shared/consent/ConsentPage.tsx";
 import type { ConsentClient } from "@ar/shared/consent/flow.ts";
 import { Layout } from "./Layout.tsx";
 import { AgentAccess } from "./pages/Agent.tsx";
+import { AgentGrantPage } from "./pages/AgentGrant.tsx";
 import { Approvals } from "./pages/Approvals.tsx";
 import { CustomerPage, Customers } from "./pages/Customers.tsx";
 import { Dunning } from "./pages/Dunning.tsx";
@@ -89,6 +90,7 @@ export function App() {
         <Route path="/dunning" element={<Dunning />} />
         <Route path="/approvals" element={<Approvals />} />
         <Route path="/agent" element={<AgentAccess />} />
+        <Route path="/agent/grants/:id" element={<AgentGrantPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
