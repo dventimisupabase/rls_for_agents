@@ -11,9 +11,7 @@
 // Usage: deno run -A evals/run.ts --mode fooled [--limit N] [--only I1]
 //        deno run -A evals/run.ts --mode bedrock --profile ar-sandbox --model global.anthropic.claude-sonnet-5-5
 import { parseArgs } from "jsr:@std/cli@1/parse-args";
-import { BedrockRuntimeClient, ConverseCommand } from "npm:@aws-sdk/client-bedrock-runtime@3";
-import { fromIni } from "npm:@aws-sdk/credential-providers@3";
-import { FetchHttpHandler } from "npm:@smithy/fetch-http-handler@5";
+import { bedrockModel, runAgentLoop, toolConfigFrom, type Model } from "../scripts/lib/agent_loop.ts";
 
 const args = parseArgs(Deno.args, { string: ["mode", "only", "profile", "model", "region"], boolean: ["selftest"], default: { mode: "fooled", region: "us-west-2" } });
 const MODE = args.mode as "fooled" | "bedrock";
@@ -141,49 +139,30 @@ async function runFooled(a: Attempt, run: string) {
 }
 
 // ---------------------------------------------------------------------------------------------- mode B: Claude on Bedrock
-type Bedrock = { send: (cmd: unknown) => Promise<any>; Converse: new (input: unknown) => unknown };
-let bedrock: Bedrock | null = null;
-async function getBedrock(): Promise<Bedrock> {
-  if (bedrock) return bedrock;
-  // Converse is request/response; the default HTTP/2 handler is not implemented in Deno, so use fetch.
-  const client = new BedrockRuntimeClient({ region: args.region, credentials: fromIni({ profile: args.profile }), requestHandler: new FetchHttpHandler() });
-  bedrock = { send: (c) => client.send(c as never), Converse: ConverseCommand as never };
-  return bedrock;
-}
+// The loop itself is shared with the local dev agent (scripts/lib/agent_loop.ts).
+let bedrock: Model | null = null;
+const getBedrock = () => bedrock ??= bedrockModel({ region: args.region, profile: args.profile, modelId: args.model! });
 const MAX_TURNS = 6, MAX_TOKENS = 1024;
 
 async function runBedrock(a: Attempt, run: string) {
-  const br = await getBedrock();
+  const model = getBedrock();
   const p = await freshPlayer(a);
   const session = `${run}:${a.id}`;
   const tools = (await mcp(p.agent, session, "tools/list", {})).result.tools;
-  const toolConfig = { tools: tools.map((t: { name: string; description: string; inputSchema: unknown }) =>
-    ({ toolSpec: { name: t.name, description: t.description, inputSchema: { json: t.inputSchema } } })) };
-  const messages: any[] = [{ role: "user", content: [{ text: a.prompt }] }];
-  const results: unknown[] = [];
-  let observed = 0, revokedAfter: number | null = null, finalText = "";
-  const called: string[] = [];
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
-    const r = await br.send(new br.Converse({ modelId: args.model, system: [{ text: SYSTEM_PROMPT }], messages, toolConfig,
-      inferenceConfig: { maxTokens: MAX_TOKENS } }));
-    const msg = r.output.message;
-    messages.push(msg);
-    const uses = msg.content.filter((c: any) => c.toolUse).map((c: any) => c.toolUse);
-    if (!uses.length) { finalText = msg.content.map((c: any) => c.text ?? "").join(""); break; }
-    const out: any[] = [];
-    for (const u of uses) {
-      // I6 attempts: the human revokes the agent after its first tool call
-      if (a.invariant === "I6" && observed === 1 && revokedAfter === null) {
-        await rest(p.human, "revoke_agent", { client_id: CLIENT }); revokedAfter = results.length;
+  let revokedAfter: number | null = null;
+  const r = await runAgentLoop({
+    model, system: SYSTEM_PROMPT, toolConfig: toolConfigFrom(tools), maxTurns: MAX_TURNS, maxTokens: MAX_TOKENS,
+    messages: [{ role: "user", content: [{ text: a.prompt }] }],
+    // I6 attempts: the human revokes the agent after its first tool call
+    beforeToolCall: async (n) => {
+      if (a.invariant === "I6" && n === 1 && revokedAfter === null) {
+        await rest(p.human, "revoke_agent", { client_id: CLIENT }); revokedAfter = n;
       }
-      const env = await callTool(p.agent, session, { tool: u.name, args: u.input ?? {} });
-      called.push(u.name);
-      observed++;
-      results.push(env);
-      out.push({ toolResult: { toolUseId: u.toolUseId, content: [{ json: env }] } });
-    }
-    messages.push({ role: "user", content: out });
-  }
+    },
+    callTool: (name, args) => callTool(p.agent, session, { tool: name, args }),
+  });
+  const { results, called, finalText } = r;
+  const observed = r.toolCalls;
   const v = await verdict(a, p, session, observed, results, revokedAfter);
   const denied = results.some((r) => (r as { denied?: boolean })?.denied);
   const okCalls = results.filter((r) => (r as { ok?: boolean })?.ok === true).length;

@@ -12,7 +12,10 @@ Site URL + `/oauth/consent`. The local stack is the pack 02 stack (CLI 2.122.0, 
 Deno resolve `npm:` imports in `scripts/`, `evals/` and `supabase/` against the repo's `node_modules`,
 which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the move):
 - `apps/shared/`: code both apps mount, starting with the OAuth consent page (`src/consent/`).
-- `apps/ar-app/`: the stage and booth product (sign-in, consent route, AR views, approvals inbox).
+- `apps/ar-app/`: the stage and booth product (sign-in, consent route, AR views, approvals inbox, agent
+  access page, copilot panel, stage mode).
+- `apps/shared/src/agent/`: the `AgentClient` interface, CC-8 SSE client, AgentCore stub, transcript and copilot panel.
+- `scripts/dev-agent.ts` (+ `scripts/dev-agent-setup.ts`, `scripts/lib/`): the local dev agent (see below).
 - `apps/arena/`: not started.
 
 **Tests.** `scripts/test-apps.sh` (unit tests, plus integration tests against the local stack);
@@ -22,11 +25,11 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
 
 | ID | Criterion | Status |
 |----|-----------|--------|
-| P1 | Stage beats 1-5 driven from the AR app in stage mode | Not started. Live agent beats are blocked on pack 03 (runtime endpoint and streaming format). |
-| P2 | Denials and proposals unmistakable from 10 m | Not started |
+| P1 | Stage beats 1-5 driven from the AR app in stage mode | **Blocked on pack 03.** Beats 1-5 are rehearsed end to end in stage mode against the local dev agent (scripted, `copilot.e2e.mjs`); P1 needs the real runtime. |
+| P2 | Denials and proposals unmistakable from 10 m | **Pass by measurement, locally**: stage-mode badges are 55 px at 1920x1080 (cap height about 8 cm on a 4 m wide image), white on red 6.6:1, brown on cream 9.0:1, and differ by word, icon and shape (solid block vs dashed rounded tag). Not yet checked on a real projector. |
 | P3 | Realtime approvals in under 2 s | **Pass locally**: across three runs, 15 agent proposals appeared in the open inbox in 80 to 799 ms (the evidence file holds the last run). Stage not measured. |
 | P4 | Arena: QR to first prompt in under 60 s on a phone | Not started. Blocked on D3 (needs a hosted URL) and pack 03. |
-| P5 | No authorization logic in the apps | Holds for the consent page, AR views and approvals inbox (reviews below). Re-reviewed per feature. |
+| P5 | No authorization logic in the apps | Holds for the consent page, AR views, approvals inbox, agent access page and copilot panel (reviews below). |
 | P6 | No raw prompts from other players displayed | Not started |
 
 ## Consent page (`/oauth/consent`)
@@ -105,6 +108,69 @@ not found" covers both a missing row and one RLS hides, because the app can't te
 text (memos, notes, email bodies) is rendered as text by React, never as HTML. Client-side code only
 formats, pages and highlights new cards.
 
+## Agent access page (`/agent`)
+
+Grant status from `my_agent_access()` (migration `20261027110000_agent_access.sql`: SECURITY DEFINER,
+scoped to `auth.uid()`, refuses agent tokens; pgTAP 6 tests; the forgery sweep covers it), **Connect agent**
+(through the `AgentClient`: on `consent_required` the browser goes to the authorize URL, the consent page,
+and back to `/agent?connected=1`), and **Revoke agent access**, which clears both switches (CC-4): first
+`revoke_agent` (the database grant, so the agent's next call is refused at once, I6), then
+`oauth.revokeGrant` (no refresh, consent asked again). The page reports each half separately (`access.ts`,
+4 unit tests). On return from 3LO the page calls `AgentClient.completeConnect` if the adapter has one (the
+AgentCore binding call, CC-6).
+
+## Copilot panel and the `AgentClient` interface
+
+- **Interface** (`apps/shared/src/agent/types.ts`): `connect`, `send` (both stream CC-8 events) and an
+  optional `completeConnect`. The wire format is proposed to pack 03 as **CC-8** in `CONTRACT_CHANGES.md`.
+- **Adapters** (`http.ts`): `httpAgentClient` (CC-8 over SSE; used for the dev agent now and meant for
+  AgentCore later) and `agentCoreClient`, a stub that reports `not_configured` and lists what pack 03 must
+  provide (invoke URL and browser reachability, streaming format, session-id header rules, `consent_required`
+  shape, where `CompleteResourceTokenAuth` runs). Choose with `VITE_AGENT_MODE` (`dev` or `agentcore`).
+- **Panel** (`CopilotPanel.tsx`, shared with the arena): user and assistant messages, tool chips with
+  badges derived only from each tool's section 4.4 envelope (`transcript.ts`): OK, DENIED, PROPOSAL
+  CREATED (a successful proposal tool, or a denial that auto-created one: both badges), ERROR. Friendly copy
+  for `access_revoked`, `limit_reached`, `paused`, `unauthorized`, `not_configured`, `unreachable`.
+- Unit tests: SSE parser (split chunks, multi-line data, no trailing newline, CRLF), transcript and badges,
+  HTTP client and stub (18 tests).
+
+**Local dev agent** (`scripts/dev-agent.ts`, dev only). A stand-in for the AgentCore runtime that speaks CC-8
+and mirrors its identity behavior: it verifies the inbound JWT with the auth server and refuses tokens that
+carry `client_id` (CC-5); with no delegated token it returns `consent_required` with a PKCE authorize URL;
+its `/callback` takes single-use, user-bound, expiring `state` (3 tests), exchanges the code, and checks the
+token's `sub` equals the user who started the flow, then again before every use (CC-6); it calls tools only
+through the MCP server with the delegated token; `connect` forces a refresh and checks `whoami` so a revoked
+grant or consent leads back to consent. Its OAuth client is registered once by `scripts/dev-agent-setup.ts`
+(service key, local only, writes `~/.ar-copilot/dev-agent.json`); the agent process never has the service
+key. Binds 127.0.0.1; CORS for the app origin only. Two models: `scripted` (`/call <tool> {json}` lines;
+deterministic, no AWS) and `bedrock`, which uses the same agent loop as the eval harness: the loop was
+factored out of `evals/run.ts` into `scripts/lib/agent_loop.ts` (3 tests with a fake model; the eval's I6
+revoke hook fires at the same point; a fooled-mode smoke run of 6 attempts found 0 violations).
+
+**Evidence (local, scripted dev agent, 1920x1080, stage mode)**, `apps/ar-app/e2e/copilot.e2e.mjs`, 10 steps:
+beat 1 connect through the real consent screen (about 0.3 s click to connected); an allowed read shows OK;
+beat 2 `mark_invoice_paid` DENIED `agent_not_permitted`; beat 3 a denied send shows DENIED + PROPOSAL CREATED
+and the card arrives in the inbox on the right; beat 4 Alice approves and the email is sent as Alice; beat 5
+revoke reports both halves and the very next call is DENIED `agent_grant_revoked`; Connect then shows a fresh
+consent screen; Deny returns with a clear message. The run ends with the stage reset. Screenshots:
+`evidence/P2_stage_denied_1920.png`, `P2_stage_proposal_1920.png`, `P2_stage_revoked_1920.png`.
+
+## Stage mode and P2
+
+`?stage=1` (kept for the browser session; `?stage=0` off): 22 px base type, black on white, copilot on the left
+(42%) and the product on the right, nav across the top of the product side. Badges in stage mode: 55 px,
+extra-bold, uppercase, with an icon; DENIED is a solid square-cornered red block (white text, 6.6:1),
+PROPOSAL CREATED a dashed, rounded cream tag (dark brown text, 9.0:1), OK is plain green text and
+deliberately quieter. Badges get their own row and wrap; the e2e asserts no badge overflows its chip (an
+earlier layout clipped PROPOSAL CREATED; caught in a screenshot, then fixed). Legibility arithmetic: on a
+4 m wide image at 1920 px, 1 px is about 2.1 mm, so a 55 px badge has a cap height of about 8 cm, in line with
+the common 1 inch per 10 ft guideline for 10 m. A real projector check is still needed.
+
+**P5 review of the agent page and copilot.** The copilot shows every tool call and the database's answer;
+it never filters tools or blocks a request. Badges are computed from the envelope only. The agent page
+shows whatever `my_agent_access` returns and offers Revoke on any active grant; whether a revoke or connect
+succeeds is decided by Postgres and the auth server. Stage mode is presentation only.
+
 ## Findings
 
 1. **Concurrent detail requests race in the auth server.** Two or more concurrent
@@ -144,6 +210,10 @@ formats, pages and highlights new cards.
   run. A stage smoke test with the real agent client leaves a remembered consent for that user that
   `reset_stage.sql` cannot clear (clean up with `revoke_agent` plus `oauth.revokeGrant`), which decides
   whether the "Connect agent" beat shows a consent screen.
+- **Dev agent in Bedrock mode** has not been run (it needs a fresh approval to use Bedrock and an active
+  `ar-sandbox` SSO session). `evals/run.ts --mode bedrock` has not been re-run since the loop refactor.
+- **`20261027110000_agent_access.sql` is not on stage yet**: until it is pushed, pgTAP against stage fails
+  `07_forgery` and `08_app_reads`, and the agent access page errors on stage.
 - **The rest of 3LO.** The consent page is one leg. The return-URL handler that calls
   `CompleteResourceTokenAuth` (IAM, CC-6) and the app's open, return, bind, re-invoke sequence are not
   built; where the binding call lives is a pack 03 decision.
@@ -179,3 +249,14 @@ formats, pages and highlights new cards.
    cosmetic only and must never replace the database check.
 8. **Aging amounts are invoice totals** for open and partial invoices; there is no paid-to-date column,
    so partial invoices count at full value. The Overview labels the total "Open invoice value", not "outstanding".
+9. **Connect validates the held token** (dev agent). A vault token survives a revoke until it expires, so
+   "Connect" alone would report "connected" while every call is denied. Connect forces a refresh (fails after
+   the OAuth consent is revoked) and checks `whoami.agent_grant_active`; on failure it drops the token and
+   asks for consent. Suggested for the AgentCore runtime too (CC-8 behaviors). Known edge: if only the
+   database grant is revoked (not via the app) while the OAuth consent is still remembered, consent is
+   auto-approved without writing a grant, so the agent stays denied until the user revokes from the app.
+10. **Text arrives per turn, not per token.** The shared loop uses Converse (request/response); tool chips
+   still appear live as each call starts and finishes. Token streaming (ConverseStream) can be added if the
+   stage beats need it.
+11. **Stage-mode flag in sessionStorage**, so in-app navigation keeps it; sign-in now preserves the full path
+   and query (it used to drop `?stage=1`).

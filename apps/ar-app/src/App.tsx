@@ -5,6 +5,7 @@ import { safeNext, signInPath } from "@ar/shared/auth/next.ts";
 import { ConsentPage } from "@ar/shared/consent/ConsentPage.tsx";
 import type { ConsentClient } from "@ar/shared/consent/flow.ts";
 import { Layout } from "./Layout.tsx";
+import { AgentAccess } from "./pages/Agent.tsx";
 import { Approvals } from "./pages/Approvals.tsx";
 import { CustomerPage, Customers } from "./pages/Customers.tsx";
 import { Dunning } from "./pages/Dunning.tsx";
@@ -78,7 +79,7 @@ export function App() {
     <Routes>
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/oauth/consent" element={<Consent />} />
-      <Route element={session ? <Layout session={session} /> : <Navigate to={signInPath(location.pathname)} replace />}>
+      <Route element={session ? <Layout session={session} /> : <Navigate to={signInPath(location.pathname + location.search)} replace />}>
         <Route path="/" element={<Overview />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/customers" element={<Customers />} />
@@ -86,6 +87,7 @@ export function App() {
         <Route path="/payments" element={<Payments />} />
         <Route path="/dunning" element={<Dunning />} />
         <Route path="/approvals" element={<Approvals />} />
+        <Route path="/agent" element={<AgentAccess />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
