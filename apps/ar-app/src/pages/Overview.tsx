@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { aging, overdueInvoices, payments, pendingActions } from "../lib/data.ts";
-import { money, totalsByCurrency } from "../lib/format.ts";
-import { useLive } from "../lib/live.tsx";
+import { money, totalsByCurrency } from "@ar/shared/data/format.ts";
+import { useLive } from "@ar/shared/data/live.tsx";
 import { ErrorBox, PageHeader, useAsync } from "../lib/ui.tsx";
 
 const BUCKETS = ["current", "1-30", "31-60", "61-90", "90+"];

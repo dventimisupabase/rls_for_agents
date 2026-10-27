@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { argSummary, bySession } from "../lib/activity.ts";
 import { agentActivity, PAGE, type AgentCall } from "../lib/data.ts";
-import { shortDate, timeAgo } from "../lib/format.ts";
-import { useLive } from "../lib/live.tsx";
+import { shortDate, timeAgo } from "@ar/shared/data/format.ts";
+import { useLive } from "@ar/shared/data/live.tsx";
 import { ErrorBox, PageHeader, Pager, Pill, useAsync } from "../lib/ui.tsx";
 import { TITLE } from "./Approvals.tsx";
 

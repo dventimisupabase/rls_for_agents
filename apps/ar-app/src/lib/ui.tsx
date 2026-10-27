@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { money, shortDate } from "./format.ts";
+import { money, shortDate } from "@ar/shared/data/format.ts";
 import { PAGE } from "./data.ts";
 
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {

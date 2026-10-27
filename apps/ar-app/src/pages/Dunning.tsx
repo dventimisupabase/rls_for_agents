@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { dunning } from "../lib/data.ts";
-import { useLive } from "../lib/live.tsx";
+import { useLive } from "@ar/shared/data/live.tsx";
 import { DateCell, ErrorBox, Money, PageHeader, Pager, Pill, useAsync } from "../lib/ui.tsx";
 
 export function Dunning() {

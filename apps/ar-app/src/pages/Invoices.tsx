@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { invoice, overdueInvoices, pendingActions, type InvoiceRow } from "../lib/data.ts";
-import { daysOverdue, timeAgo } from "../lib/format.ts";
+import { daysOverdue, timeAgo } from "@ar/shared/data/format.ts";
 import { aboutInvoice, invoiceBalance } from "../lib/invoice.ts";
-import { useLive } from "../lib/live.tsx";
+import { useLive } from "@ar/shared/data/live.tsx";
 import { DateCell, ErrorBox, Money, PageHeader, Pager, Pill, useAsync } from "../lib/ui.tsx";
 import { TITLE } from "./Approvals.tsx";
 

@@ -4,7 +4,7 @@ import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CopilotPanel } from "@ar/shared/agent/CopilotPanel.tsx";
 import { agent, getJwt, openConsent } from "./agent.ts";
 import { myMemberships, pendingActions } from "./lib/data.ts";
-import { LiveProvider, useLive } from "./lib/live.tsx";
+import { LiveProvider, useLive } from "@ar/shared/data/live.tsx";
 import { isStageShortcut, readStage, stageFromQuery, writeStage } from "./lib/stage.ts";
 import { useAsync } from "./lib/ui.tsx";
 import { sb } from "./supabase.ts";
@@ -60,7 +60,7 @@ export function Layout({ session }: { session: Session }) {
   const copilot = <CopilotPanel agent={agent} getJwt={getJwt} onConsent={openConsent} />;
 
   return (
-    <LiveProvider>
+    <LiveProvider sb={sb}>
       <div className={`shell${stage ? " shell-stage" : ""}${showCopilot && !stage ? " shell-drawer" : ""}`}>
         <header className="topbar">
           <span className="brand">{first?.tenants.name ?? "Accounts receivable"}</span>

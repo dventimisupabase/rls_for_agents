@@ -51,6 +51,18 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
 1. Groundwork: `apps/arena` workspace (port 3001); move the data, format and live helpers into `apps/shared`;
    allow more than one app origin locally (Site URL and redirect URLs, the dev agent's CORS and return URL,
    which assume `localhost:3000` today).
+   **Done (2026-10-27).** `apps/arena` (Vite, :3001, strict port) is a shell with an `/agent` route that
+   forwards only `connected` / `agent_error` to `/play`. `apps/shared/src/data/` holds `api.ts` (a `dataApi(sb)`
+   factory; each app binds its own client, and the AR app's `lib/data.ts` is now a thin binding), `format.ts`
+   and `live.tsx` (`LiveProvider` takes `sb`). The dev agent takes a repeatable `--app-url` (default :3000 and
+   :3001), echoes CORS only for listed origins, and remembers in the OAuth `state` which app started the flow, so
+   `/callback` returns to that app's `/agent`; an unlisted or missing origin falls back to the first app, so the
+   callback is never an open redirect (Deno tests). Redirect URLs allow both origins. Site URL stays :3000:
+   consent lands on Site URL + `/oauth/consent` and sessions are per origin, so connecting an agent from the
+   arena needs the stack started with `SUPABASE_AUTH_SITE_URL=http://localhost:3001` (not yet tried; first
+   needed in step 4, when the arena also needs its own consent and sign-in routes). `scripts/e2e-apps.sh` stays
+   AR-only until the arena has an e2e. Unchanged behavior: app tests (Deno 9, AR 22, arena 1, shared 60 with the
+   integration tests) and the AR e2e suites (consent, views, copilot) all pass.
 2. Sign-in with an email code, the legal consent text as a marked placeholder (a production build refuses to
    build while it is present), then `provision_me` and the player's handle and tenant.
 3. Brief page: rules, the four flags, the `KST-2026-####` hint, what counts as a capture, the prize, the "found
