@@ -27,7 +27,7 @@ export function Overview() {
       {ag.error && <ErrorBox message={ag.error} />}
       <section className="kpis">
         <div className="kpi"><span className="kpi-label">Open invoice value</span>
-          <span className="kpi-value">{outstanding.map((o) => money(o.amount, o.currency)).join(" · ") || "None"}</span></div>
+          <span className="kpi-value kpi-stack">{outstanding.length ? outstanding.map((o) => <span key={o.currency}>{money(o.amount, o.currency)}</span>) : "None"}</span></div>
         <Link to="/invoices" className="kpi"><span className="kpi-label">Overdue invoices</span>
           <span className="kpi-value">{od.data?.count ?? "…"}</span></Link>
         <Link to="/payments" className="kpi"><span className="kpi-label">Unmatched payments</span>
