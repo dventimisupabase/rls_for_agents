@@ -173,8 +173,11 @@ local project holds 5432x). The stage database password and seed password live i
     captures are recorded without paging. Grafana: `grafana_reader` has a generated password on stage (in
     `~/.ar-copilot/stage.env`); verified it logs in through the pooler, reads `ctf.scoreboard_totals`, and is refused
     `public.invoices`. Arena: not created yet (by decision). The confidential agent OAuth client `ar-copilot-agent`
-    (`client_secret_basic`) is registered on stage with a placeholder `http://localhost:8976/callback` redirect; its id
-    and secret are only in `~/.ar-copilot/stage.env`. Pack 03 replaces the redirect with the AgentCore callback URL.
+    (`client_secret_basic`) is registered on stage; its id and secret are only in `~/.ar-copilot/stage.env`. It was
+    registered with a placeholder `http://localhost:8976/callback` redirect. **Update (2026-10-27):** the placeholder is
+    replaced by the AgentCore callback URL from pack 03's `supabase-ar-agent-stage` credential provider
+    (`https://bedrock-agentcore.us-west-2.amazonaws.com/identities/oauth2/callback/f9aefa12-eee7-47a4-961f-baeefafcb483`),
+    now the client's only redirect URI.
 37. **Attempt classifier: Claude Haiku on Bedrock** (`global.anthropic.claude-haiku-5-5`), a trusted job
     (`scripts/classify-prompts.ts`, once or `--watch`) that reads unlabeled `ctf.prompts`, writes one category per prompt
     to `ctf.prompt_labels`, and never runs in the agent path. `scoreboard_totals.attempts` now counts prompts labeled as

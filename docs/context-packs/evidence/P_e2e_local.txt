@@ -1,0 +1,32 @@
+== consent
+ok   no session: sign-in keeps the consent request in ?next=
+ok   consent screen names the signed-in user
+ok   allow: redirected to the agent callback with a code  (423 ms from authorize)
+ok   remembered consent: no screen, code issued
+ok   not you? sign out: back to sign-in with the request kept
+ok   another user cannot complete a request opened by someone else
+ok   deny: callback gets error=access_denied
+== views
+ok   alice: overview with aging buckets and KPIs  (1876 overdue, 31 unmatched)
+ok   alice: overdue invoices paged server-side  (Previous1-50 of 1876Next)
+ok   alice: invoice number opens the invoice page  (BWS-2026-1677)
+ok   alice: customer detail with contacts and invoices  (Copperleaf Electric Co)
+ok   alice: unmatched payments show remittance memos
+ok   alice: projector mode toggles from the top bar and Alt+Shift+P, survives a reload
+ok   bob: sees only his customers' invoices and no unmatched payments  (278 overdue, 0 unmatched)
+ok   P3: proposals appear in alice's inbox live  (ms: 793, 197, 793, 298, 795; max 795)
+ok   card shows who requested it: user + agent
+ok   card links its invoice to the invoice page
+ok   agent send is denied and its proposal appears  (183 ms, reason agent_not_permitted)
+ok   bob's approve is refused by the database, not hidden by the app
+ok   alice approves: executed as alice (decided_by_client null), payment matched
+ok   approved send goes out as the human (sent_by_client null)
+ok   decided view lists the outcome and who decided
+ok   invoice page: the approved match shows under approvals and payments  (BWS-2026-0007)
+ok   invoice page: the approved dunning send shows under approvals, and as sent by a person  (BWS-2026-0001)
+ok   invoice page: a new proposal about it appears live as pending
+ok   bob: opens his own invoice; another rep's invoice is not found
+ok   after revocation the agent's next call is denied  (agent_grant_revoked)
+
+== copilot
+(not re-run here: the dev agent is in bedrock mode. The 14-step scripted rehearsal last passed on 2026-10-27 on the ledger theme, twice in a row, with P2 badges 55 px, 6.5:1 and 9.5:1.)

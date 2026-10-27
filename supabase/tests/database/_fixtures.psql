@@ -51,6 +51,10 @@ insert into public.payments (id, tenant_id, received_at, amount, currency, payer
   ('00000000-0000-0000-0000-00000000f002', '00000000-0000-0000-0000-0000000000b1', now() - interval '2 days', 100.00, 'USD', 'Harbor Hardware',
    'partial for BWS-2026-9001', '00000000-0000-0000-0000-00000000e001');
 
+-- The agent client is registered, as on stage (the reset only re-activates grants of live clients).
+insert into auth.oauth_clients (id, client_name, registration_type, redirect_uris, grant_types, token_endpoint_auth_method)
+values ('a6e47000-0000-0000-0000-000000000001', 'ar-copilot-agent', 'manual', 'http://localhost/cb', 'authorization_code', 'client_secret_basic');
+
 insert into app.agent_grants (user_id, client_id) values
   ('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001'),
   ('b0b00000-0000-0000-0000-000000000002', 'a6e47000-0000-0000-0000-000000000001');

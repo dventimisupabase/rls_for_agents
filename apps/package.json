@@ -1,0 +1,8 @@
+{
+  "name": "rls-for-agents-apps",
+  "private": true,
+  "workspaces": ["ar-app", "shared"],
+  "scripts": {
+    "test:apps": "npm test --workspaces --if-present"
+  }
+}

@@ -87,6 +87,57 @@ Proposal only; nothing in sections 4 or 5 was edited. Implemented on stage and d
   `revoke_agent(client_id)` together with `supabase.auth.oauth.revokeGrant` (CC-4);
   `decide_pending_action(action_id, decision)` for the approvals inbox; `provision_me()` right after a player
   signs in; `whoami()` for diagnostics.
-- Pack 03 (runtime, trusted path, `service_role`): `ctf.record_prompt(user_id, session_id, prompt)` and
-  `ctf.record_runtime_tool_calls(session_id, observed)` (I4 compares the latter with audit rows).
+- ~~Pack 03 (runtime, trusted path, `service_role`): `ctf.record_prompt(user_id, session_id, prompt)` and
+  `ctf.record_runtime_tool_calls(session_id, observed)` (I4 compares the latter with audit rows).~~
+  **Superseded (2026-10-27):** the runtime is the agent path, so it must not hold `service_role` (hard rule 2);
+  a prompt-injected agent with that key could forge or hide I4 evidence (pushback from pack 03). Working
+  proposal, to settle at the contract freeze: a trusted forwarder calls `record_runtime_tool_calls` from the
+  runtime's per-session counts in its logs, and whatever invokes the runtime for the user (for example the
+  Edge Function proxy, which runs no model) calls `record_prompt`. Pack 03 to write it up as CC-9. The
+  functions themselves are unchanged and stay `service_role` only.
 - MCP adapter internal: `audit_rejected_call(tool, args, error)` and `report_canary_hit(tool)`.
+
+## CC-8 (from pack 04, 2026-10-27): the app-to-agent wire format (proposal for pack 03)
+
+Proposal only. The apps' copilot panel talks to the agent through one `AgentClient` interface; a local dev
+agent (`scripts/dev-agent.ts`) implements this format today, and the AgentCore adapter will use it once the
+runtime emits it. Nothing in sections 4 or 5 changes.
+
+**Request.** `POST <invoke URL>` with `Authorization: Bearer <user's first-party Supabase JWT>`,
+`Content-Type: application/json`, `Accept: text/event-stream`, body:
+```json
+{ "session_id": "<uuid, one per conversation>", "message": "<user text>" }
+```
+`{"action": "connect"}` instead of `message` asks the agent to make sure it holds a delegated token (the
+"Connect agent" button) without running a turn. The runtime forwards `session_id` to the MCP server as
+`x-session-id` (I4 correlation). On AgentCore the same value can be the runtime session id, if it meets the
+runtime's session-id rules (pack 03 to confirm the header name and length rules).
+
+**Response.** Server-sent events, one JSON object per `data:` line, in order:
+
+| `type`             | Fields                                         | Meaning                                                                                         |
+|--------------------|------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `consent_required` | `url`                                          | No usable delegated token. The app opens `url` (3LO). Ends the stream.                          |
+| `connected`        | `client_id`                                    | A delegated token is held (reply to `connect`).                                                 |
+| `text`             | `text`                                         | Assistant text (a whole turn's text, or a delta if the runtime streams tokens).                 |
+| `tool_call`        | `id`, `name`, `args`                           | The agent is calling an MCP tool.                                                               |
+| `tool_result`      | `id`, `name`, `envelope`                       | The tool's section 4.4 envelope, unmodified. The app derives the ok / denied / proposal badge.  |
+| `error`            | `code`, `message`                              | `code` in `access_revoked`, `limit_reached`, `paused` (kill switch), `unauthorized`, `internal`. |
+| `done`             |                                                | End of the turn.                                                                                |
+
+**Behaviors the app relies on.**
+- An inbound token that carries `client_id` (an agent token, CC-5) is refused with `error/unauthorized`.
+- Before using a vault token, the runtime checks its `sub` equals the inbound JWT's `sub` (CC-6); on a mismatch
+  it drops the token and returns `consent_required`.
+- A denial inside a tool result is not an error: `agent_grant_revoked` arrives as a `tool_result` envelope.
+  `error/access_revoked` is for a refresh the OAuth server refused (consent revoked); the runtime drops the
+  vault token, and the next request gets `consent_required`.
+- The return-URL handler for 3LO (`CompleteResourceTokenAuth`, CC-6) is outside this stream; the app calls it
+  through `AgentClient.completeConnect(params)` when the user lands back on the return URL.
+- `connect` should confirm the held vault token still works, not just that one exists: a vault token survives
+  "Revoke agent access" until it expires. The dev agent forces a refresh (refused once the app has revoked the
+  OAuth consent) and, on failure, drops the token and returns `consent_required`. It does not call the database
+  directly for this check, so the agent path stays MCP-only and audited.
+- When a tool result's `data` is a list, the runtime gives the model a plain `"N rows returned."` text block next to
+  the unchanged envelope. Without it, Claude Sonnet 5.5 reported 21 rows as 20 (twice), which breaks stage beat 1
+  (Alice and Bob compare counts). With it, three runs out of three matched the database.

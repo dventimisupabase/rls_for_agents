@@ -1,4 +1,4 @@
-# 04 — Apps (owner: TBD, decision D7)
+# 04 Apps (owner: David, provisional; decision D7)
 
 Read `00_SHARED_CONTEXT.md` first. Two front ends, one stack. Framework is your
 choice; hosting per D3 (AWS hosting preferred). Both apps use Supabase Auth for

@@ -1,0 +1,24 @@
+{
+  "name": "@ar/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
