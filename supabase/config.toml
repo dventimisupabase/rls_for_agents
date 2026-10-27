@@ -231,7 +231,9 @@ enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
-max_frequency = "1m0s"
+# Locally 5s, so a returning player can ask for a new code without waiting a minute (and the arena e2e can
+# sign the same player in twice). A hosted project keeps its own value; the arena shows the server's message.
+max_frequency = "5s"
 # Number of characters used in the email OTP.
 otp_length = 8
 # Number of seconds before the email OTP expires (defaults to 1 hour).
@@ -246,6 +248,16 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# The arena signs players in with a typed code (REPORT_04, "Arena: decisions and plan"): a new email gets the
+# confirmation template, a returning one the magic link template. Both show only the code.
+[auth.email.template.confirmation]
+subject = "Your Kestrel Freight arena code"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.magic_link]
+subject = "Your Kestrel Freight arena code"
+content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

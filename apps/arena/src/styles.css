@@ -1,0 +1,126 @@
+/* "Freight manifest": a canary carbon copy of a bill of lading on kraft paper, printed in form-ink navy.
+   The one loud element is the cargo tag that carries the player's handle. */
+:root {
+  --kraft: #c9ae82;
+  --kraft-deep: #b39468;
+  --sheet: #f3ebc4;
+  --ink: #1b2f5c;
+  --tag: #f2852f;
+  --stamp: #b3261e;
+  --rule: 1.5px solid var(--ink);
+  --stencil: "Big Shoulders Stencil Variable", "Archivo Variable", sans-serif;
+  font-family: "Archivo Variable", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--kraft);
+  -webkit-text-size-adjust: 100%;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  /* kraft fibre: two faint, offset grains */
+  background:
+    repeating-linear-gradient(83deg, rgb(0 0 0 / 0.025) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-71deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 11px),
+    var(--kraft);
+}
+
+.sheet {
+  max-width: 30rem;
+  /* a strip of kraft stays visible around the sheet, even on a phone */
+  margin: max(0.6rem, env(safe-area-inset-top)) 0.6rem max(0.6rem, env(safe-area-inset-bottom));
+  min-height: calc(100dvh - 1.2rem);
+  padding: 1.25rem 1.1rem 2rem;
+  background: var(--sheet);
+  border: var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+@media (min-width: 34rem) {
+  .sheet { min-height: auto; margin: 2.5rem auto; box-shadow: 6px 6px 0 var(--kraft-deep); }
+}
+
+.sheet-head { border-bottom: 3px double var(--ink); padding-bottom: 0.6rem; }
+.wordmark { margin: 0; font-family: var(--stencil); font-weight: 800; font-size: 2.6rem; line-height: 0.95; letter-spacing: 0.01em; }
+.sheet-head h1 { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 600; font-stretch: 85%; }
+
+form { display: flex; flex-direction: column; gap: 1rem; }
+
+/* A manifest cell: ruled box, small printed label in the corner, the entry below it. */
+.cell { display: block; border: var(--rule); padding: 0.35rem 0.6rem 0.45rem; background: rgb(255 255 255 / 0.35); }
+.cell > span, .cell > dt { display: block; font-size: 0.78rem; font-weight: 600; font-stretch: 85%; }
+.cell input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.15rem; /* at least 16px: iOS does not zoom on focus */
+  padding: 0.15rem 0;
+}
+.cell input:focus { outline: none; }
+.cell:focus-within { outline: 3px solid var(--tag); outline-offset: 2px; }
+.cell input.code { font-family: var(--stencil); font-weight: 700; font-size: 2.4rem; letter-spacing: 0.18em; }
+.cell dd { margin: 0; font-size: 1.1rem; overflow-wrap: anywhere; }
+
+.manifest { margin: 0; display: grid; gap: 0; }
+.manifest .cell + .cell { border-top: 0; }
+
+.consent { margin: 0; font-size: 0.88rem; border-left: 4px solid var(--stamp); padding: 0.2rem 0 0.2rem 0.7rem; }
+
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
+.primary {
+  min-height: 3.2rem;
+  border: 0;
+  background: var(--ink);
+  color: var(--sheet);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.primary:disabled { opacity: 0.6; cursor: progress; }
+.link { background: none; border: 0; padding: 0.4rem 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.quiet-actions { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.sign-out { align-self: flex-start; margin-top: auto; }
+
+.notice { margin: 0; }
+.form-error { margin: 0; color: var(--stamp); font-weight: 600; }
+.form-error p { margin: 0 0 0.8rem; }
+.body { margin: 0; max-width: 34em; }
+
+/* The cargo tag: orange card, clipped corners at the string end, a reinforced punched hole. */
+.tag {
+  position: relative;
+  align-self: flex-start;
+  min-width: 15rem;
+  max-width: 100%;
+  padding: 0.9rem 1.2rem 1rem 3.6rem;
+  background: var(--tag);
+  color: var(--ink);
+  clip-path: polygon(1.4rem 0, 100% 0, 100% 100%, 1.4rem 100%, 0 calc(100% - 1.4rem), 0 1.4rem);
+  transform: rotate(-2deg);
+  margin: 0.4rem 0 0.2rem;
+}
+.tag::before {
+  content: "";
+  position: absolute;
+  left: 1.1rem;
+  top: 50%;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: -0.65rem;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: 0 0 0 0.3rem #f7c99a;
+}
+.tag-label { display: block; font-size: 0.8rem; font-weight: 600; font-stretch: 85%; }
+.tag-handle { display: block; font-family: var(--stencil); font-weight: 800; font-size: 2.3rem; line-height: 1; overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .tag { animation: tag-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+  @keyframes tag-in { from { transform: rotate(-9deg) translateY(-0.6rem); opacity: 0; } }
+}

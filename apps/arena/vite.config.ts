@@ -1,10 +1,12 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { legalGuard } from "./build/legal-guard.ts";
 
 // The arena runs beside the AR app (:3000) against the same local stack. The dev agent allows both origins;
 // see REPORT_04 "Arena: decisions and plan" for which app the local Site URL points at.
+// legalGuard: a production build fails while the consent text is a placeholder (src/legal.ts).
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), legalGuard()],
   server: { port: 3001, strictPort: true },
   preview: { port: 3001, strictPort: true },
 });

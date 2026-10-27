@@ -65,6 +65,31 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
    integration tests) and the AR e2e suites (consent, views, copilot) all pass.
 2. Sign-in with an email code, the legal consent text as a marked placeholder (a production build refuses to
    build while it is present), then `provision_me` and the player's handle and tenant.
+   **Done (2026-10-27).** `/sign-in` asks for a work email, shows the consent placeholder, and sends a code
+   (`signInWithOtp`, creating the user if new); the player types the code in the same tab (`verifyOtp`, type
+   `email`; digits only, so a pasted `1234 5678` works; 6 to 10 digits accepted). `?next=` goes through the shared
+   `safeNext`, ready for the consent round trip in step 4. Then `provision_me` (idempotent) and a first screen
+   with the handle on a cargo tag and the company `Player <handle>`.
+   - Email: the local default sign-up email had only a link, so `supabase/templates/{confirmation,magic_link}.html`
+     carry only `{{ .Token }}` (a new email gets the first, a returning one the second; `verifyOtp` with type
+     `email` accepts both, checked against the auth server). A hosted project needs the same two templates.
+     Local `max_frequency` is now 5 s per address (was 1 min) so a returning player is not made to wait; the
+     arena shows the auth server's message when it refuses.
+   - Legal guard: the consent text lives in `apps/arena/src/legal.ts` and starts with `[LEGAL PLACEHOLDER]`.
+     `build/legal-guard.ts` scans the emitted bundle (not the source, so the visible marker survives
+     minification) and fails a `production` build that still contains it. `npm run build:stage -w @ar/arena`
+     builds anyway, for testing on real hosting before legal sends the text. Unit tests plus a real build in
+     the e2e.
+   - Look: "freight manifest" on a phone: a canary carbon-copy sheet on kraft, form-ink navy, manifest cells
+     for fields, Big Shoulders Stencil for the wordmark, handle and code, Archivo for text; the cargo-tag orange
+     is spent on one thing, the handle.
+   - Evidence: `apps/arena/e2e/signin.e2e.mjs` at an iPhone 14 viewport, code read from Mailpit, 9 steps pass
+     (`evidence/A_signin_e2e_local.txt`): new email gets a code with no link; a wrong code is refused; a pasted
+     code with a space works; handle and company shown about 0.6 s after opening the page with scripted typing
+     (P4's 60 s is mostly the human reading an email); the database has one player row, its own tenant and 560
+     cloned invoices; reload and a returning sign-in keep the same handle; an off-site `?next=` lands in the
+     arena; the production build refuses and the stage build passes. Screenshots: `evidence/A_signin_email_390.png`,
+     `evidence/A_player_tag_390.png`. `scripts/e2e-apps.sh` now takes `<app>:<test>` (for example `arena:signin`).
 3. Brief page: rules, the four flags, the `KST-2026-####` hint, what counts as a capture, the prize, the "found
    a real hole?" policy; text the humans still owe is marked TBD.
 4. Play screen: the shared copilot panel, and one tab away a simplified view of the player's own invoices,
