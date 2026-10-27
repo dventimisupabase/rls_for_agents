@@ -9,6 +9,13 @@ export function parseScript(message: string): { name: string; args: Record<strin
   });
 }
 
+// Scripted mode only: "/simulate paused" or "/simulate limit_reached" answers with that CC-8 error, so the apps'
+// handling of pack 03's kill switch and per-player limits can be tested before the runtime has them.
+export function simulated(message: string): "paused" | "limit_reached" | null {
+  const m = message.trim().match(/^\/simulate\s+(paused|limit_reached)$/);
+  return m ? (m[1] as "paused" | "limit_reached") : null;
+}
+
 // Payload of a JWT the dev agent has already verified (or received from the token endpoint itself).
 export function claims(jwt: string): Record<string, unknown> {
   const p = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");

@@ -141,3 +141,30 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
 - When a tool result's `data` is a list, the runtime gives the model a plain `"N rows returned."` text block next to
   the unchanged envelope. Without it, Claude Sonnet 5.5 reported 21 rows as 20 (twice), which breaks stage beat 1
   (Alice and Bob compare counts). With it, three runs out of three matched the database.
+
+## CC-10 (from pack 04, 2026-10-27): kill-switch status before a turn, and limit details (proposal for pack 03)
+
+Proposal only. CC-9 is reserved for pack 03's write-up of the trusted forwarder and the Edge Function proxy
+(CC-7 supersession); this one is numbered after it. Nothing in sections 4 or 5 changes, and the arena does not
+depend on it: it already handles CC-8's `error/paused` and `error/limit_reached` (friendly text and a "Send
+again" button).
+
+**Why.** Pack 03 section 3 describes the kill switch as a flag that "the arena app and runtime both honor". Today
+the arena learns about a pause only after a player sends a message. That is correct, because the runtime refuses
+the turn, but with about 150 players a paused arena still lets everyone type and send. A read before the turn
+lets the arena show the pause up front. It also lets the Edge Function proxy (CC-9) refuse without invoking the
+runtime.
+
+**Proposal.**
+1. **Where the switch lives.** One row in Postgres: `ctf.arena_switch(paused boolean, message text, changed_at,
+   changed_by)`, flipped by a human from a phone in the Supabase dashboard's table editor, or with one SQL
+   statement (A4: under 30 s). The proxy reads it before each turn. `public.arena_status()` returns only
+   `{ paused, message? }`, for humans only (the same shape as `room_totals`). If pack 03 prefers AWS (AppConfig
+   or SSM), the proxy reads it there and `arena_status` becomes a small endpoint on the proxy. The app needs only
+   `{ paused, message? }`, either when the play screen opens and every 30 s, or by Realtime if the switch lives
+   in Postgres.
+2. **The runtime and the proxy stay the source of truth.** They refuse with `error/paused`. The arena's read is
+   presentation only: it disables Send and shows the message (P5: no authorization in the app).
+3. **Limit details.** Optional fields on the CC-8 error event: `limit` (`turns_per_conversation`,
+   `usage_per_hour`, `concurrent_conversations`) and `retry_after_s`. With them the arena can say which limit
+   was reached and when to try again. Without them it shows its general limit message (current behavior).

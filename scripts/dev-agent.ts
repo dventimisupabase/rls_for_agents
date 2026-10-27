@@ -13,7 +13,7 @@
 //             [--app-url http://localhost:3000 --app-url http://localhost:3001]  (AR app and arena; the first is the default)
 import { parseArgs } from "jsr:@std/cli@1/parse-args";
 import { bedrockModel, runAgentLoop, toolConfigFrom, type Message, type Model } from "./lib/agent_loop.ts";
-import { appOrigin, claims, corsHeaders, parseScript, PendingStates } from "./lib/dev_agent_core.ts";
+import { appOrigin, claims, corsHeaders, parseScript, PendingStates, simulated } from "./lib/dev_agent_core.ts";
 
 const args = parseArgs(Deno.args, { string: ["model", "profile", "region", "model-id", "app-url"], collect: ["app-url"],
   default: { model: "scripted", region: "us-west-2", "model-id": "global.anthropic.claude-sonnet-5-5" } });
@@ -124,6 +124,8 @@ async function invocations(req: Request): Promise<Response> {
     };
 
     if (args.model === "scripted") {
+      const sim = simulated(message);
+      if (sim) { await emit({ type: "error", code: sim, message: `simulated ${sim}` }); return; }
       const calls = parseScript(message);
       if (!calls.length) { await emit({ type: "text", text: "Scripted dev agent. Send lines like: /call get_invoice {\"invoice_number\":\"BWS-2026-0001\"}" }); return; }
       for (const [i, c] of calls.entries()) {

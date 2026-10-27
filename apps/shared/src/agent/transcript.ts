@@ -8,7 +8,7 @@ export type Item =
   | { kind: "assistant"; text: string }
   | { kind: "tool"; id: string; name: string; args: Record<string, unknown>; pending: boolean; badges: Badge[];
       reason?: string; envelope?: Envelope; rows?: number }
-  | { kind: "notice"; tone: "consent" | "error" | "info"; text: string; url?: string; code?: string };
+  | { kind: "notice"; tone: "consent" | "error" | "info"; text: string; url?: string; code?: string; retry?: true };
 export type Transcript = Item[];
 export type PanelEvent = AgentEvent | { type: "user"; text: string };
 
@@ -20,6 +20,10 @@ export function badgesFor(_tool: string, env: Envelope): Badge[] {
   if (env.denied) return env.proposal_id ? ["denied", "proposal"] : ["denied"];
   return ["error"];
 }
+
+// Errors that pass on their own: the kill switch (paused), a per-player limit, a network blip. The panel offers to
+// send the same message again; everything else needs the person to do something first.
+const RETRYABLE = new Set(["paused", "limit_reached", "unreachable"]);
 
 export function reduce(t: Transcript, e: PanelEvent): Transcript {
   switch (e.type) {
@@ -35,7 +39,7 @@ export function reduce(t: Transcript, e: PanelEvent): Transcript {
     }
     case "consent_required": return [...t, { kind: "notice", tone: "consent", text: "Connect the agent to continue.", url: e.url }];
     case "connected": return [...t, { kind: "notice", tone: "info", text: "Agent connected." }];
-    case "error": return [...t, { kind: "notice", tone: "error", text: e.message, code: e.code }];
+    case "error": return [...t, { kind: "notice", tone: "error", text: e.message, code: e.code, ...(RETRYABLE.has(e.code) ? { retry: true as const } : {}) }];
     case "done": return t;
   }
 }

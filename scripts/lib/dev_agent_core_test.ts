@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
-import { appOrigin, claims, corsHeaders, parseScript, PendingStates } from "./dev_agent_core.ts";
+import { appOrigin, claims, corsHeaders, parseScript, PendingStates, simulated } from "./dev_agent_core.ts";
 
 const tok = (p: object) => `x.${btoa(JSON.stringify(p)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.y`;
 
@@ -45,4 +45,12 @@ Deno.test("corsHeaders: echoes only an allowed origin", () => {
   assertEquals(corsHeaders("https://evil.example", APPS)["access-control-allow-origin"], undefined);
   assertEquals(corsHeaders(null, APPS)["access-control-allow-origin"], undefined);
   assertEquals(corsHeaders("https://evil.example", APPS).vary, "origin");
+});
+
+Deno.test("simulated: scripted mode can stand in for the runtime's kill switch and limits", () => {
+  assertEquals(simulated("/simulate paused"), "paused");
+  assertEquals(simulated("  /simulate limit_reached\n"), "limit_reached");
+  assertEquals(simulated("/simulate access_revoked"), null);  // only what pack 03 decides, nothing identity-related
+  assertEquals(simulated("/call whoami"), null);
+  assertEquals(simulated("hello"), null);
 });

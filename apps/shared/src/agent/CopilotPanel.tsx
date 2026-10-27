@@ -45,17 +45,20 @@ type Props = {
   onConsent: (url: string, prompt?: string) => void;
   /** A message to send as soon as the panel opens (the arena's first message, held across consent). */
   resume?: string | null;
+  /** The app's own wording for CC-8 error codes (falls back to the defaults above). */
+  errorText?: Partial<Record<string, string>>;
   placeholder?: string;
   title?: string;
 };
 
-export function CopilotPanel({ agent, getJwt, onConsent, resume, placeholder = "Ask about invoices, payments or customers", title = "Copilot" }: Props) {
+export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, placeholder = "Ask about invoices, payments or customers", title = "Copilot" }: Props) {
   const [items, setItems] = useState<Transcript>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState(newSession);
   const abort = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
+  const text_ = (code: string) => errorText?.[code] ?? ERROR_TEXT[code];
   const lastPrompt = useRef<string | undefined>(undefined);
   const resumed = useRef(false);
 
@@ -74,12 +77,12 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, placeholder = "
     lastPrompt.current = text;
     setItems((t) => reduce(t, { type: "user", text }));
     const jwt = await getJwt();
-    if (!jwt) { setItems((t) => reduce(t, { type: "error", code: "unauthorized", message: ERROR_TEXT.unauthorized })); return; }
+    if (!jwt) { setItems((t) => reduce(t, { type: "error", code: "unauthorized", message: text_("unauthorized") })); return; }
     setBusy(true);
     abort.current = new AbortController();
     try {
       for await (const ev of agent.send(jwt, session, text, abort.current.signal)) {
-        const shown = ev.type === "error" ? { ...ev, message: ERROR_TEXT[ev.code] ?? ev.message } : ev;
+        const shown = ev.type === "error" ? { ...ev, message: text_(ev.code) ?? ev.message } : ev;
         setItems((t) => reduce(t, shown));
       }
     } catch (err) {
@@ -115,6 +118,9 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, placeholder = "
             <div key={i} className={`notice notice-${it.tone}`} data-code={it.code}>
               {it.text}
               {it.url && <button type="button" className="primary" onClick={() => onConsent(it.url!, lastPrompt.current)}>Connect agent</button>}
+              {it.retry && i === items.length - 1 && lastPrompt.current && (
+                <button type="button" className="primary" disabled={busy} onClick={() => sendText(lastPrompt.current!)}>Send again</button>
+              )}
             </div>
           );
         })}

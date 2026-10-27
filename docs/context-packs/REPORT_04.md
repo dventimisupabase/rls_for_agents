@@ -161,6 +161,20 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
      `evidence/A_attempts_390.png`, `evidence/A_room_390.png`.
 6. Friendly copy for `paused` and `limit_reached` (already in CC-8). A pre-turn kill-switch status read would
    be a new proposal (CC-10); the switch itself is pack 03's.
+   **Done (2026-10-27).** The arena words the runtime's CC-8 errors in its own voice (the shared panel takes
+   `errorText`): a pause says nothing is lost and to send again in a minute; a limit names the limits (turns per
+   conversation, use per hour, one conversation at a time) and what to do. Both are set in form ink, not stamp
+   red: they are the arena's state, not the player's mistake.
+   - "Send again": `paused`, `limit_reached` and `unreachable` notices (shared transcript, `retry`; unit test)
+     carry a button that resends the same message, on the latest notice only. The AR app gets it too.
+   - The scripted dev agent answers `/simulate paused` and `/simulate limit_reached` with those CC-8 errors
+     (only those two; Deno test), so this is tested before pack 03's runtime has a kill switch.
+   - CC-10 (proposal, `CONTRACT_CHANGES.md`): a pre-turn kill-switch read (`{ paused, message? }`, suggested as
+     one Postgres row flipped from the dashboard and read by the Edge Function proxy and `arena_status()`), and
+     optional `limit` and `retry_after_s` on `limit_reached`. Nothing in the arena depends on it.
+   - Evidence: `play.e2e.mjs` now 12 steps (`evidence/A_play_e2e_local.txt`): paused shows the copy, Send again
+     resends the same message, only the newest notice offers it; limit reached shows its copy and the next turn
+     works. Screenshot: `evidence/A_paused_390.png`.
 7. Tests: e2e at a phone viewport (code read from the local mail catcher, provisioning, connect, first prompt,
    timed against P4's 60 s), and a P6 check that the arena never reads other players' prompts.
 8. Stretch, first in the cut order: "Send Kestrel a payment". Player-written memos are attack text, so no

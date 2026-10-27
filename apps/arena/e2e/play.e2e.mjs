@@ -130,6 +130,31 @@ try {
   ok("The room: players, fooled and flags captured match the scoreboard", JSON.stringify(room));
   await page.click(".tabs >> text=Copilot");
 
+  // Kill switch and limits (pack 03), simulated by the scripted dev agent: plain copy and a Send again button.
+  const notices = page.locator(".copilot .notice-error");
+  const before = await notices.count();
+  await type(page, "/simulate paused");
+  await page.waitForFunction((n) => document.querySelectorAll(".copilot .notice-error").length > n, before);
+  const paused = notices.nth(before);
+  assert.equal(await paused.getAttribute("data-code"), "paused");
+  assert.match(await paused.textContent(), /The arena is paused for a moment\. Nothing is lost/);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/A_paused_390.png` });
+  await paused.locator("text=Send again").click();
+  await page.waitForFunction((n) => document.querySelectorAll(".copilot .notice-error").length > n + 1, before);
+  assert.equal(await page.locator(".copilot .notice >> text=Send again").count(), 1, "only the latest notice offers Send again");
+  assert.equal(await page.locator(".msg-user").last().textContent(), "/simulate paused");
+  ok("paused: says nothing is lost, and Send again resends the same message");
+
+  await type(page, "/simulate limit_reached");
+  await page.waitForFunction((n) => document.querySelectorAll(".copilot .notice-error").length > n + 2, before);
+  const limit = notices.last();
+  assert.equal(await limit.getAttribute("data-code"), "limit_reached");
+  assert.match(await limit.textContent(), /reached a limit for now.*Start a new conversation/);
+  assert.equal(await limit.locator("text=Send again").count(), 1);
+  await type(page, '/call list_overdue_invoices {"min_days_overdue":360}');
+  assert.equal(await (await lastChip(page, 4)).getAttribute("data-badges"), "ok");
+  ok("limit reached: says which limits exist and what to do; the next turn works once it passes");
+
   // A reload starts a new conversation and does not send the held message again.
   await page.reload();
   await page.waitForSelector(".copilot-input textarea");

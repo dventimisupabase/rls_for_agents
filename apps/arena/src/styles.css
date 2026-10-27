@@ -289,3 +289,6 @@ a.primary { display: flex; align-items: center; justify-content: center; text-de
 .room dd { margin: 0; font-family: var(--stencil); font-weight: 800; font-size: 2.4rem; line-height: 1; }
 .room-flags { grid-column: 1 / -1; background: var(--tag); padding: 0.6rem 0.8rem; }
 .room-flags dd { font-size: 4.2rem; }
+
+/* A pause or a limit is the arena's state, not the player's mistake: form ink, not stamp red. */
+.copilot .notice-error[data-code="paused"], .copilot .notice-error[data-code="limit_reached"] { color: var(--ink); border-color: var(--ink); border-width: 2px; }
