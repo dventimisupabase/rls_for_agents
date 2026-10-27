@@ -95,6 +95,13 @@ describe.skipIf(!RUN)("consent page flow (local stack)", () => {
     expect(views.map((v) => v.kind)).toEqual(["ask", "ask", "ask"]);
   });
 
+  it("two tabs (separate clients) loading one authorization both recover via the retry", async () => {
+    const tabs = await Promise.all([signIn("bob@brightwater.example"), signIn("bob@brightwater.example")]);
+    const a = await authorize(clientId);
+    const views = await Promise.all(tabs.map((t) => loadConsent(t as unknown as ConsentClient, a.authorizationId)));
+    expect(views.map((v) => v.kind)).toEqual(["ask", "ask"]);
+  });
+
   it("fresh approval writes the grant and yields a working delegated token", async () => {
     const alice = await signIn("alice@brightwater.example");
     const a = await authorize(clientId);

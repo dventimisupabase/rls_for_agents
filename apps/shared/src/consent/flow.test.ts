@@ -9,6 +9,7 @@ function fake(opts: {
   session?: boolean;
   details?: unknown;
   detailsError?: string;
+  detailsErrorsFirst?: string[];  // errors returned by the first calls, then success
   grant?: { ok: boolean; reason?: string } | "error";
   approve?: { redirect_url: string } | "error";
   deny?: { redirect_url: string } | "error";
@@ -20,6 +21,8 @@ function fake(opts: {
       oauth: {
         getAuthorizationDetails: async (id: string) => {
           calls.push(`details:${id}`);
+          const first = opts.detailsErrorsFirst?.shift();
+          if (first) return { data: null, error: { message: first } };
           return opts.detailsError ? { data: null, error: { message: opts.detailsError } } : { data: opts.details, error: null };
         },
         approveAuthorization: async (id: string, o?: { skipBrowserRedirect?: boolean }) => {
@@ -92,6 +95,26 @@ describe("loadConsent", () => {
     expect(calls.filter((c) => c.startsWith("details:"))).toHaveLength(1);
     await loadConsent(sb, "auth-1");  // a later, sequential load fetches again
     expect(calls.filter((c) => c.startsWith("details:"))).toHaveLength(2);
+  });
+
+  // Two tabs (or anything outside this page's shared request) can still race. Sequential requests
+  // succeed, so one retry recovers; a request that really is gone or bound to someone else stays 404.
+  it("retries once after a 404 and recovers from a race", async () => {
+    const { sb, calls } = fake({ details: ASK, detailsErrorsFirst: ["authorization not found"] });
+    expect((await loadConsent(sb, "auth-1")).kind).toBe("ask");
+    expect(calls.filter((c) => c.startsWith("details:"))).toHaveLength(2);
+  });
+
+  it("gives up after one retry", async () => {
+    const { sb, calls } = fake({ detailsError: "authorization not found" });
+    expect(await loadConsent(sb, "auth-1")).toEqual({ kind: "error", message: "authorization not found" });
+    expect(calls.filter((c) => c.startsWith("details:"))).toHaveLength(2);
+  });
+
+  it("does not retry other errors", async () => {
+    const { sb, calls } = fake({ detailsError: "invalid JWT" });
+    await loadConsent(sb, "auth-1");
+    expect(calls.filter((c) => c.startsWith("details:"))).toHaveLength(1);
   });
 
   it("surfaces an auth error", async () => {

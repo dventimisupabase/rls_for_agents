@@ -57,6 +57,7 @@ const redirectOf = (r: AuthResult<unknown>): ConsentView => {
 
 // The auth server races concurrent GET /oauth/authorizations/{id} (the losers get 404), and React
 // StrictMode runs the load effect twice. Concurrent loads of one authorization share one request.
+const RETRY_MS = 150;
 const inflight = new WeakMap<ConsentClient, Map<string, Promise<AuthResult<unknown>>>>();
 
 function detailsOnce(sb: ConsentClient, id: string): Promise<AuthResult<unknown>> {
@@ -64,7 +65,16 @@ function detailsOnce(sb: ConsentClient, id: string): Promise<AuthResult<unknown>
   inflight.set(sb, byId);
   let p = byId.get(id);
   if (!p) {
-    p = sb.auth.oauth.getAuthorizationDetails(id).finally(() => byId.delete(id));
+    // Requests outside this page (another tab) can still race; sequential requests succeed, so
+    // retry a 404 once after a short pause. A request that is really gone stays 404.
+    const fetchOnce = () => sb.auth.oauth.getAuthorizationDetails(id);
+    p = fetchOnce()
+      .then(async (r) => {
+        if (r.error?.message !== "authorization not found") return r;
+        await new Promise((res) => setTimeout(res, RETRY_MS));
+        return fetchOnce();
+      })
+      .finally(() => byId.delete(id));
     byId.set(id, p);
   }
   return p;
