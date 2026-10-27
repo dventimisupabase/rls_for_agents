@@ -67,3 +67,26 @@ Added risk (observed in the spike): binding confirms who started the flow, not w
 consent happens under a different Supabase session than the app user, the runtime acts as the consenting
 user. Recommended (untested) mitigation: compare the vault token's `sub` to the inbound JWT's `sub`
 before every use, and keep the consent page on the same Supabase session as the app.
+
+## CC-7 (from pack 02, 2026-10-26): envelope reasons and the interface RPCs other packs call
+
+Proposal only; nothing in sections 4 or 5 was edited. Implemented on stage and documented in `REPORT_02.md`.
+
+**Section 4.4 denial reasons in use** (the contract names only `agent_not_permitted`):
+- `agent_not_permitted`: an agent action blocked by policy.
+- `agent_grant_revoked`: the token carries `client_id` but the grant is revoked or missing (I6). Returned
+  before any lookup, so the revocation beat reads as a denial rather than `not_found`.
+- `not_permitted`: a human refused by RLS (for example a rep marking an invoice paid).
+- `human_only`: an agent token called a human-only RPC (grant, revoke, approve, provision).
+- `agent_only`: a human session called an adapter-only RPC (`report_canary_hit`, `audit_rejected_call`).
+- Errors: `invalid_input` now also covers arguments of the wrong type (rejected by PostgREST before the RPC runs);
+  every such call is still audited (I4).
+
+**RPCs outside the section 4.3 tool list** (not MCP tools; called by apps or trusted components):
+- Pack 04 (AR app, consent page, arena): `grant_agent(client_id)` after consent approval;
+  `revoke_agent(client_id)` together with `supabase.auth.oauth.revokeGrant` (CC-4);
+  `decide_pending_action(action_id, decision)` for the approvals inbox; `provision_me()` right after a player
+  signs in; `whoami()` for diagnostics.
+- Pack 03 (runtime, trusted path, `service_role`): `ctf.record_prompt(user_id, session_id, prompt)` and
+  `ctf.record_runtime_tool_calls(session_id, observed)` (I4 compares the latter with audit rows).
+- MCP adapter internal: `audit_rejected_call(tool, args, error)` and `report_canary_hit(tool)`.
