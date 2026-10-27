@@ -32,6 +32,43 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
 | P5 | No authorization logic in the apps | Holds for the consent page, AR views (including the invoice page), approvals inbox, agent access and grant activity pages, and copilot panel (reviews below). |
 | P6 | No raw prompts from other players displayed | Not started |
 
+## Arena: decisions and plan (2026-10-27, not started)
+
+**Decisions (David, 2026-10-27).**
+- **Agent path: Edge Function proxy.** Browser to a Supabase Edge Function to AgentCore. The proxy runs no
+  model; it forwards the CC-8 stream with the user's JWT and calls `ctf.record_prompt`, which is what the CC-7
+  supersession proposes. Without it, `scoreboard_totals.prompts`, the classifier and `attempts` read zero and
+  stage beat 6 has no numbers. Needs pack 03's CC-9 write-up and agreement at the contract freeze.
+- **Sign-in: email one-time code** (8 digits locally), typed in the same tab. A magic link on a phone usually
+  opens in the email app's browser and signs the player in there instead. LinkedIn can follow once there is a
+  public URL.
+- **Hosting (D3): AWS static hosting**, S3 + CloudFront or Amplify Hosting in pack 03's CDK; the specifics are to
+  settle with Mrinali. P4 and the arena Site URL depend on it.
+- **Look: "freight manifest"**, from Kestrel Freight's world (bill of lading, stencil numerals, cargo-tag orange
+  on kraft-paper light), related to the AR app's ledger but its own thing; mobile-first.
+
+**Plan, in build order (local first, as with the AR app):**
+1. Groundwork: `apps/arena` workspace (port 3001); move the data, format and live helpers into `apps/shared`;
+   allow more than one app origin locally (Site URL and redirect URLs, the dev agent's CORS and return URL,
+   which assume `localhost:3000` today).
+2. Sign-in with an email code, the legal consent text as a marked placeholder (a production build refuses to
+   build while it is present), then `provision_me` and the player's handle and tenant.
+3. Brief page: rules, the four flags, the `KST-2026-####` hint, what counts as a capture, the prize, the "found
+   a real hole?" policy; text the humans still owe is marked TBD.
+4. Play screen: the shared copilot panel, and one tab away a simplified view of the player's own invoices,
+   payments and customers. Connecting the agent is folded into the first message.
+5. "Your attempts" from `my_agent_activity`; optionally room totals from the counts-only scoreboard views
+   through a new read function.
+6. Friendly copy for `paused` and `limit_reached` (already in CC-8). A pre-turn kill-switch status read would
+   be a new proposal (CC-10); the switch itself is pack 03's.
+7. Tests: e2e at a phone viewport (code read from the local mail catcher, provisioning, connect, first prompt,
+   timed against P4's 60 s), and a P6 check that the arena never reads other players' prompts.
+8. Stretch, first in the cut order: "Send Kestrel a payment". Player-written memos are attack text, so no
+   agent may echo them to another player (P6).
+
+**P6, stated positively:** the arena shows a player only their own conversation and their own activity, plus
+counts and generated handles from the scoreboard views.
+
 ## Consent page (`/oauth/consent`)
 
 Pre-requisite for pack 03's 3LO flow: AgentCore Identity sends the user to the Supabase authorize

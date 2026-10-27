@@ -184,7 +184,7 @@ scripts/                       deploy, reset-stage, load-test
 |----|----------------------------------------------------------------------|--------------|-------------|
 | D1 | Delegated tokens vs. user-JWT passthrough                            | Both (spike) | Mon Oct 26  |
 | D2 | MCP server host: Supabase Edge Function vs. behind AgentCore Gateway | Both         | after spike |
-| D3 | Front-end hosting (AWS hosting preferred for the "on AWS" story)     | Apps owner   | open        |
+| D3 | Front-end hosting (AWS hosting preferred for the "on AWS" story)     | Apps owner   | AWS static hosting (S3 + CloudFront or Amplify Hosting, in pack 03's CDK; details with Mrinali), Tue Oct 27 |
 | D4 | Claude model on Bedrock                                              | Mrinali      | open        |
 | D5 | AWS region (co-locate with Supabase projects)                        | Mrinali      | open        |
 | D6 | CDK vs. Terraform                                                    | Mrinali      | open        |
