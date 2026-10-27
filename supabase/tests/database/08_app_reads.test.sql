@@ -68,5 +68,24 @@ select is((select count(*) from public.list_pending_actions('pending')), 0::bigi
 select is((select count(*) from public.list_pending_actions('bogus')), 0::bigint, 'unknown view returns nothing');
 reset role;
 
+-- ---- agent access page: my own grants only, humans only
+select ok(not has_function_privilege('anon', 'public.my_agent_access()', 'execute'), 'anon cannot call my_agent_access');
+select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
+select results_eq(
+  $$ select g ->> 'client_id', g ->> 'client_name', (g ->> 'active')::boolean
+     from jsonb_array_elements(public.my_agent_access() #> '{data,grants}') g $$,
+  $$ values ('a6e47000-0000-0000-0000-000000000001'::text, 'ar-copilot-agent'::text, true) $$,
+  'my_agent_access (alice): her grant, with the client name, active');
+select is((public.revoke_agent('a6e47000-0000-0000-0000-000000000001') ->> 'ok')::boolean, true, 'alice revokes');
+select is((select (g ->> 'active')::boolean from jsonb_array_elements(public.my_agent_access() #> '{data,grants}') g), false,
+  'my_agent_access (alice): revoked grant shows inactive');
+reset role;
+select pg_temp.act_as('c0ffee00-0000-0000-0000-000000000003');
+select is(jsonb_array_length(public.my_agent_access() #> '{data,grants}'), 0, 'my_agent_access (kim): nobody else''s grants');
+reset role;
+select pg_temp.act_as('b0b00000-0000-0000-0000-000000000002', 'a6e47000-0000-0000-0000-000000000001');
+select is(public.my_agent_access() ->> 'reason', 'human_only', 'my_agent_access refuses agent tokens');
+reset role;
+
 select * from finish();
 rollback;

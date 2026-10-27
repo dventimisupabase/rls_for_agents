@@ -10,7 +10,7 @@ select is(
      select p.proname::text collate "C" as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('authenticated', p.oid, 'execute')) x),
   array['ar_aging', 'audit_rejected_call', 'decide_pending_action', 'draft_dunning_email', 'get_customer', 'get_invoice', 'grant_agent',
-        'list_customer_contacts', 'list_overdue_invoices', 'list_pending_actions', 'mark_invoice_paid', 'propose_payment_match', 'provision_me',
+        'list_customer_contacts', 'list_overdue_invoices', 'list_pending_actions', 'mark_invoice_paid', 'my_agent_access', 'propose_payment_match', 'provision_me',
         'report_canary_hit', 'revoke_agent', 'search_payments', 'send_dunning_email', 'whoami']::text[] collate "C",
   'the sweep covers every public function authenticated can execute');
 
@@ -24,6 +24,7 @@ begin
   perform public.ar_aging();
   perform public.list_pending_actions('pending');
   perform public.list_pending_actions('decided');
+  perform public.my_agent_access();
   perform public.list_overdue_invoices(0);
   perform public.get_invoice('KST-2026-9042');
   perform public.get_customer('00000000-0000-0000-0000-00000000c003');
