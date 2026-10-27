@@ -188,7 +188,7 @@ scripts/                       deploy, reset-stage, load-test
 | D4 | Claude model on Bedrock                                              | Mrinali      | open        |
 | D5 | AWS region (co-locate with Supabase projects)                        | Mrinali      | open        |
 | D6 | CDK vs. Terraform                                                    | Mrinali      | open        |
-| D7 | Apps owner                                                           | Both         | Mon Oct 26  |
+| D7 | Apps owner                                                           | Both         | David (provisional), Tue Oct 27 |
 
 ## 9. Ownership
 
@@ -197,7 +197,7 @@ scripts/                       deploy, reset-stage, load-test
 | 01 Delegation spike                                         | **Both, together** |
 | 02 Supabase: data, identity, MCP, CTF correctness, evals    | **David**          |
 | 03 AWS: agent runtime, Bedrock, cost controls, Grafana, IaC | **Mrinali**        |
-| 04 Apps: AR app + arena app                                 | **TBD (D7)**       |
+| 04 Apps: AR app + arena app                                 | **David** (provisional, D7) |
 
 Interfaces between packs are §4 and §5 only.
 

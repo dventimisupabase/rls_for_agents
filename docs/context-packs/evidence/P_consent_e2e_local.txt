@@ -1,0 +1,7 @@
+ok   no session: sign-in keeps the consent request in ?next=
+ok   consent screen names the signed-in user
+ok   allow: redirected to the agent callback with a code  (321 ms from authorize)
+ok   remembered consent: no screen, code issued
+ok   not you? sign out: back to sign-in with the request kept
+ok   another user cannot complete a request opened by someone else
+ok   deny: callback gets error=access_denied

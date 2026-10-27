@@ -1,0 +1,8 @@
+{
+  "name": "rls-for-agents",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "test:apps": "npm test --workspaces --if-present"
+  }
+}
