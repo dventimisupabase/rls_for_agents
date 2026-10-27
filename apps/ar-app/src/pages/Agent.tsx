@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { agent, getJwt, openConsent } from "../agent.ts";
-import { revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
+import { connectAgent, revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
 import { timeAgo } from "../lib/format.ts";
 import { ErrorBox, PageHeader, Pill, useAsync } from "../lib/ui.tsx";
 import { sb } from "../supabase.ts";
@@ -48,11 +48,9 @@ export function AgentAccess() {
     setBusy(true); setNote(null); setRevoked(null);
     const jwt = await getJwt();
     if (!jwt) { setBusy(false); return setNote({ tone: "error", text: "Sign in again." }); }
-    for await (const ev of agent.connect(jwt, crypto.randomUUID())) {
-      if (ev.type === "consent_required") return openConsent(ev.url);
-      if (ev.type === "connected") setNote({ tone: "ok", text: "The agent is already connected." });
-      if (ev.type === "error") setNote({ tone: "error", text: ev.message });
-    }
+    const r = await connectAgent(agent, sb.auth.oauth, jwt, myAccess);
+    if (r.kind === "consent") return openConsent(r.url);
+    setNote(r.kind === "connected" ? { tone: "ok", text: "The agent is already connected." } : { tone: "error", text: r.message });
     setBusy(false);
     grants.reload();
   };

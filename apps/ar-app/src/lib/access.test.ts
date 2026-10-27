@@ -48,3 +48,47 @@ describe("revokeBoth", () => {
     expect((await revokeBoth(sb, "c1")).oauth).toEqual({ ok: false, message: "oauth down" });
   });
 });
+
+import { connectAgent } from "./access.ts";
+import type { AgentEvent } from "@ar/shared/agent/types.ts";
+
+describe("connectAgent", () => {
+  const stream = (evs: AgentEvent[]) => (async function* () { for (const e of evs) yield e; })();
+  function setup(replies: AgentEvent[][], activeFor: string[]) {
+    const calls: string[] = [];
+    const agent = { connect: () => { calls.push("connect"); return stream(replies.shift() ?? []); } };
+    const oauth = { revokeGrant: async (o: { clientId: string }) => { calls.push(`revokeGrant:${o.clientId}`); return { data: null, error: null }; } };
+    const grants = async () => activeFor.map((c) => ({ client_id: c, client_name: null, active: true, granted_at: "", revoked_at: null }));
+    return { agent, oauth, grants, calls };
+  }
+
+  it("passes a consent request through", async () => {
+    const s = setup([[{ type: "consent_required", url: "https://consent" }]], []);
+    expect(await connectAgent(s.agent, s.oauth, "jwt", s.grants)).toEqual({ kind: "consent", url: "https://consent" });
+  });
+
+  it("connected with an active database grant is connected", async () => {
+    const s = setup([[{ type: "connected", client_id: "c1" }]], ["c1"]);
+    expect(await connectAgent(s.agent, s.oauth, "jwt", s.grants)).toEqual({ kind: "connected" });
+    expect(s.calls).toEqual(["connect"]);
+  });
+
+  // The agent still holds a token, but the database grant was revoked outside the app: clear the OAuth
+  // consent so the next connect goes through the consent screen (which writes the grant). The app never
+  // writes a grant itself.
+  it("connected without a database grant: revoke the OAuth consent and connect again", async () => {
+    const s = setup([[{ type: "connected", client_id: "c1" }], [{ type: "consent_required", url: "https://consent" }]], []);
+    expect(await connectAgent(s.agent, s.oauth, "jwt", s.grants)).toEqual({ kind: "consent", url: "https://consent" });
+    expect(s.calls).toEqual(["connect", "revokeGrant:c1", "connect"]);
+  });
+
+  it("gives up after one retry", async () => {
+    const s = setup([[{ type: "connected", client_id: "c1" }], [{ type: "connected", client_id: "c1" }]], []);
+    expect((await connectAgent(s.agent, s.oauth, "jwt", s.grants)).kind).toBe("error");
+  });
+
+  it("surfaces agent errors", async () => {
+    const s = setup([[{ type: "error", code: "unreachable", message: "down" }]], []);
+    expect(await connectAgent(s.agent, s.oauth, "jwt", s.grants)).toEqual({ kind: "error", message: "down" });
+  });
+});

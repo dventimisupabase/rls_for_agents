@@ -27,6 +27,14 @@ describe("reduce", () => {
     expect(tool.reason).toBe("agent_not_permitted");
     expect(tool.pending).toBe(false);
   });
+  it("a read that returns a list records how many rows came back (beat 1: same question, different answers)", () => {
+    let t = reduce([], { type: "tool_call", id: "1", name: "list_overdue_invoices", args: {} });
+    t = reduce(t, { type: "tool_result", id: "1", name: "list_overdue_invoices", envelope: { ok: true, data: [{}, {}, {}] } });
+    expect(t[0]).toMatchObject({ rows: 3 });
+    t = reduce(t, { type: "tool_call", id: "2", name: "get_invoice", args: {} });
+    t = reduce(t, { type: "tool_result", id: "2", name: "get_invoice", envelope: { ok: true, data: { id: "x" } } });
+    expect((t[1] as { rows?: number }).rows).toBeUndefined();
+  });
   it("a tool call without a result yet is pending", () => {
     const t = reduce([], { type: "tool_call", id: "1", name: "get_invoice", args: {} });
     expect(t[0]).toMatchObject({ kind: "tool", pending: true, badges: [] });

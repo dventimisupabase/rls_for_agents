@@ -32,6 +32,7 @@ function ToolChip({ item }: { item: Extract<Item, { kind: "tool" }> }) {
           <span key={b} className={`badge badge-${b}`}><span className="badge-icon" aria-hidden>{BADGE_ICON[b]}</span>{BADGE_TEXT[b]}</span>
         ))}
       </span>
+      {item.rows !== undefined && <span className="chip-rows" data-rows={item.rows}>{item.rows} {item.rows === 1 ? "row" : "rows"}</span>}
       {item.reason && <span className="chip-reason">{item.reason}</span>}
     </div>
   );

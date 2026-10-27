@@ -7,7 +7,7 @@ export type Item =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
   | { kind: "tool"; id: string; name: string; args: Record<string, unknown>; pending: boolean; badges: Badge[];
-      reason?: string; envelope?: Envelope }
+      reason?: string; envelope?: Envelope; rows?: number }
   | { kind: "notice"; tone: "consent" | "error" | "info"; text: string; url?: string; code?: string };
 export type Transcript = Item[];
 export type PanelEvent = AgentEvent | { type: "user"; text: string };
@@ -29,7 +29,8 @@ export function reduce(t: Transcript, e: PanelEvent): Transcript {
     case "tool_result": {
       const i = t.findLastIndex((x) => x.kind === "tool" && x.id === e.id);
       const item = { kind: "tool" as const, id: e.id, name: e.name, args: i >= 0 ? (t[i] as { args: Record<string, unknown> }).args : {},
-        pending: false, badges: badgesFor(e.name, e.envelope), reason: e.envelope.reason ?? e.envelope.error, envelope: e.envelope };
+        pending: false, badges: badgesFor(e.name, e.envelope), reason: e.envelope.reason ?? e.envelope.error, envelope: e.envelope,
+        ...(e.envelope.ok && Array.isArray(e.envelope.data) ? { rows: e.envelope.data.length } : {}) };
       return i >= 0 ? t.map((x, j) => (j === i ? item : x)) : [...t, item];
     }
     case "consent_required": return [...t, { kind: "notice", tone: "consent", text: "Connect the agent to continue.", url: e.url }];

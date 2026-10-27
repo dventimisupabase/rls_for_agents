@@ -1,23 +1,23 @@
 running 3 tests from ./scripts/lib/agent_loop_test.ts
-tool calls run in order, results go back to the model, events stream ... ok (0ms)
+tool calls run in order, results go back to the model, events stream ... ok (1ms)
 beforeToolCall runs before each call with the count so far (eval I6 revoke hook) ... ok (0ms)
 stops after maxTurns even if the model keeps calling tools ... ok (0ms)
 running 3 tests from ./scripts/lib/dev_agent_core_test.ts
 parseScript: /call lines become tool calls, other lines are ignored ... ok (0ms)
 claims decodes a JWT payload ... ok (0ms)
 PendingStates: single use, bound to the starting user, expires ... ok (0ms)
-ok | 6 passed | 0 failed (27ms)
+ok | 6 passed | 0 failed (78ms)
 > test
 > vitest run
  RUN  v5.0.5 /Users/davida.ventimiglia/Work/rls_for_agents/apps/ar-app
  Test Files  2 passed (2)
-      Tests  8 passed (8)
-   Start at  07:59:43
-   Duration  73ms (tests 40%, import 29%, transform 20%, worker 10%)
+      Tests  13 passed (13)
+   Start at  08:08:08
+   Duration  75ms (tests 43%, import 26%, transform 19%, worker 12%)
 > test
 > vitest run
  RUN  v5.0.5 /Users/davida.ventimiglia/Work/rls_for_agents/apps/shared
  Test Files  6 passed (6)
-      Tests  53 passed (53)
-   Start at  07:59:43
-   Duration  716ms (tests 92%, import 5%, transform 2%, worker 1%)
+      Tests  54 passed (54)
+   Start at  08:08:08
+   Duration  554ms (tests 90%, import 6%, transform 2%, worker 1%)

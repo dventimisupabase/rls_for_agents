@@ -25,7 +25,7 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
 
 | ID | Criterion | Status |
 |----|-----------|--------|
-| P1 | Stage beats 1-5 driven from the AR app in stage mode | **Blocked on pack 03.** Beats 1-5 are rehearsed end to end in stage mode against the local dev agent (scripted, `copilot.e2e.mjs`); P1 needs the real runtime. |
+| P1 | Stage beats 1-5 driven from the AR app in stage mode | **Blocked on pack 03.** All five beats (section 11) run end to end in stage mode against the local dev agent in scripted mode (`copilot.e2e.mjs`, 13 steps); P1 needs the real runtime and a model. |
 | P2 | Denials and proposals unmistakable from 10 m | **Pass by measurement, locally**: stage-mode copilot badges are 55 px at 1920x1080 (cap height about 8 cm on a 4 m wide image), white on red 6.6:1, brown on cream 9.0:1, and differ by word, icon and shape (solid block vs dashed rounded tag); the inbox card's PROPOSAL label is 44 px with the same dashed tag. Not yet checked on a real projector. |
 | P3 | Realtime approvals in under 2 s | **Pass locally**: across three runs, 15 agent proposals appeared in the open inbox in 80 to 799 ms (the evidence file holds the last run). Stage not measured. |
 | P4 | Arena: QR to first prompt in under 60 s on a phone | Not started. Blocked on D3 (needs a hosted URL) and pack 03. |
@@ -147,13 +147,24 @@ deterministic, no AWS) and `bedrock`, which uses the same agent loop as the eval
 factored out of `evals/run.ts` into `scripts/lib/agent_loop.ts` (3 tests with a fake model; the eval's I6
 revoke hook fires at the same point; a fooled-mode smoke run of 6 attempts found 0 violations).
 
-**Evidence (local, scripted dev agent, 1920x1080, stage mode)**, `apps/ar-app/e2e/copilot.e2e.mjs`, 10 steps:
-beat 1 connect through the real consent screen (about 0.3 s click to connected); an allowed read shows OK;
-beat 2 `mark_invoice_paid` DENIED `agent_not_permitted`; beat 3 a denied send shows DENIED + PROPOSAL CREATED
-and the card arrives in the inbox on the right; beat 4 Alice approves and the email is sent as Alice; beat 5
-revoke reports both halves and the very next call is DENIED `agent_grant_revoked`; Connect then shows a fresh
-consent screen; Deny returns with a clear message. The run ends with the stage reset. Screenshots:
-`evidence/P2_stage_denied_1920.png`, `P2_stage_proposal_1920.png`, `P2_stage_revoked_1920.png`.
+**Evidence (local, scripted dev agent, 1920x1080, stage mode)**, `apps/ar-app/e2e/copilot.e2e.mjs`, 13 steps,
+mapped to the beats in `00_SHARED_CONTEXT.md` section 11. The scripted calls are what a fully fooled agent would
+do, so each outcome shown is the database's, not a model's choice.
+- Connect: Alice and Bob each connect through the real consent screen (about 0.25 s click to connected). A
+  database-only revoke (consent left in place) sends Connect back through the consent screen.
+- Beat 1: the same question (`list_overdue_invoices`, over 360 days) returns 65 rows for Alice and 11 for Bob
+  (his customers only); both match a direct count.
+- Beat 2: after reading the payments with the injected memo, the injected actions run: `mark_invoice_paid` is
+  DENIED (`agent_not_permitted`), `list_customer_contacts` returns only Alice's tenant, and the invoice is unchanged.
+- Beat 3: a denied send shows DENIED + PROPOSAL CREATED, the card arrives in the inbox, Alice approves, and the
+  email is stamped as sent by Alice (no agent client).
+- Beat 4: after `supabase/stage/live_policy_500.sql`, the agent sends a $101.33 reminder itself (OK, stamped with
+  the agent client); a reminder over $500 is still DENIED + proposal.
+- Beat 5: Alice revokes (both halves); her agent's next call is DENIED `agent_grant_revoked`; Bob's still works.
+- After the reset: Alice's grant shows active again with her consent gone; Revoke in that state reports "none to
+  revoke" for OAuth instead of failing; reconnecting shows the consent screen once and the agent works again
+  (the runbook step).
+- Screenshots: `evidence/P2_stage_denied_1920.png`, `P2_stage_proposal_1920.png`, `P2_stage_revoked_1920.png`.
 
 ## Stage mode and P2
 
@@ -202,18 +213,14 @@ succeeds is decided by Postgres and the auth server. Stage mode is presentation 
 
 ## Not yet verified or built
 
-- **Stage.** `20261027100000_app_reads.sql` was pushed on 2026-10-27 (`migration list` showed only it
-  pending; `db push`, no config push). pgTAP on stage: 140 pass (`evidence/P_pgtap_stage.txt`). As Alice on
-  stage: `ar_aging()` 8.4 ms, `list_pending_actions` 2.1 ms (pending) and 0.9 ms (decided) execution time.
-  The browser checks have not been run against stage. Stage's Site URL is `http://localhost:3000`, so the same app
-  pointed at stage's URL and publishable key would serve stage's consent requests, but that has not been
-  run. A stage smoke test with the real agent client leaves a remembered consent for that user that
-  `reset_stage.sql` cannot clear (clean up with `revoke_agent` plus `oauth.revokeGrant`), which decides
-  whether the "Connect agent" beat shows a consent screen.
-- **Dev agent in Bedrock mode** has not been run (it needs a fresh approval to use Bedrock and an active
-  `ar-sandbox` SSO session). `evals/run.ts --mode bedrock` has not been re-run since the loop refactor.
-- **`20261027110000_agent_access.sql` is not on stage yet**: until it is pushed, pgTAP against stage fails
-  `07_forgery` and `08_app_reads`, and the agent access page errors on stage.
+- **Stage.** `20261027100000_app_reads.sql` and `20261027110000_agent_access.sql` were pushed on 2026-10-27
+  (each time `migration list` showed only that migration pending; `db push`, no config push). pgTAP on stage:
+  146 pass (`evidence/P_pgtap_stage.txt`). As Alice on stage: `ar_aging()` 8.4 ms, `list_pending_actions`
+  2.1 ms (pending) and 0.9 ms (decided) execution time. The browser checks have not been run against stage.
+  Stage's Site URL is `http://localhost:3000`, so this app pointed at stage's URL and publishable key would
+  serve stage's consent requests; not yet run.
+- **Dev agent in Bedrock mode** has not been run yet (approved 2026-10-27; waiting on an `ar-sandbox` SSO login).
+  `evals/run.ts --mode bedrock` has not been re-run since the loop refactor.
 - **The rest of 3LO.** The consent page is one leg. The return-URL handler that calls
   `CompleteResourceTokenAuth` (IAM, CC-6) and the app's open, return, bind, re-invoke sequence are not
   built; where the binding call lives is a pack 03 decision.
@@ -236,10 +243,9 @@ succeeds is decided by Postgres and the auth server. Stage mode is presentation 
    **After a rehearsal the halves disagree:** beat 5 revokes both, then `reset_stage.sql` re-activates the
    database grant but cannot restore the OAuth consent. The agent page then shows the grant as active, an
    AgentCore vault token keeps working until it expires, and its next refresh fails (consent required).
-   Revoke in that state works (the missing consent is reported as "none to revoke", e2e step). Decision for
-   the humans: (a) the reset stops re-activating grants, so every rehearsal starts at "Connect agent" (changes
-   the S9 reset and its `06` assertion), or (b) keep it and add "reconnect the agent before a rehearsal" to the
-   runbook.
+   Revoke in that state works (the missing consent is reported as "none to revoke", e2e step). **Decided
+   (David, 2026-10-27): keep the reset as is and reconnect the agent before every rehearsal**
+   (`docs/STAGE_RUNBOOK.md`; the e2e runs that step).
 4. **AR app sign-in is email + password** (Alice and Bob are seeded users). The arena will use magic
    links per pack 04.
 5. **Playwright for browser checks**, run from `scripts/e2e-apps.sh`. The e2e scripts register a
@@ -254,11 +260,13 @@ succeeds is decided by Postgres and the auth server. Stage mode is presentation 
    cosmetic only and must never replace the database check.
 8. **Aging amounts are invoice totals** for open and partial invoices; there is no paid-to-date column,
    so partial invoices count at full value. The Overview labels the total "Open invoice value", not "outstanding".
-9. **Connect validates the held token** (dev agent). A vault token survives a revoke until it expires, so
-   "Connect" alone would report "connected" while every call is denied. Connect forces a refresh, which
-   fails once the OAuth consent is revoked (the app's revoke always clears it), then drops the token and asks
-   for consent. Refresh only, no direct database check: the agent reaches Postgres only through the MCP
-   server. Proposed for the AgentCore runtime in CC-8.
+9. **Connect validates the held token.** A vault token survives a revoke until it expires, so "Connect" alone
+   would report "connected" while every call is denied. The dev agent forces a refresh on connect (fails once
+   the OAuth consent is revoked) and then asks for consent; refresh only, so the agent reaches Postgres only
+   through MCP (proposed for AgentCore in CC-8). The app covers the other half: if the agent reports
+   "connected" for a client with no active database grant (revoked outside the app), it revokes that OAuth
+   consent and connects again, which brings back the consent screen (`connectAgent`, 5 unit tests, e2e step).
+   The app never writes a grant itself; only the consent screen does.
 10. **Text arrives per turn, not per token.** The shared loop uses Converse (request/response); tool chips
    still appear live as each call starts and finishes. Token streaming (ConverseStream) can be added if the
    stage beats need it.

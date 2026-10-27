@@ -1,7 +1,7 @@
 == consent
 ok   no session: sign-in keeps the consent request in ?next=
 ok   consent screen names the signed-in user
-ok   allow: redirected to the agent callback with a code  (338 ms from authorize)
+ok   allow: redirected to the agent callback with a code  (449 ms from authorize)
 ok   remembered consent: no screen, code issued
 ok   not you? sign out: back to sign-in with the request kept
 ok   another user cannot complete a request opened by someone else
@@ -12,23 +12,25 @@ ok   alice: overdue invoices paged server-side  (Previous1-50 of 1876Next)
 ok   alice: customer detail with contacts and invoices  (Copperleaf Electric Co)
 ok   alice: unmatched payments show remittance memos
 ok   bob: sees only his customers' invoices and no unmatched payments  (278 overdue, 0 unmatched)
-ok   P3: proposals appear in alice's inbox live  (ms: 792, 300, 807, 188, 795; max 807)
+ok   P3: proposals appear in alice's inbox live  (ms: 790, 201, 793, 295, 794; max 794)
 ok   card shows who requested it: user + agent
-ok   agent send is denied and its proposal appears  (185 ms, reason agent_not_permitted)
+ok   agent send is denied and its proposal appears  (184 ms, reason agent_not_permitted)
 ok   bob's approve is refused by the database, not hidden by the app
 ok   alice approves: executed as alice (decided_by_client null), payment matched
 ok   approved send goes out as the human (sent_by_client null)
 ok   decided view lists the outcome and who decided
 ok   after revocation the agent's next call is denied  (agent_grant_revoked)
 == copilot
-ok   stage mode: copilot left, product right
-ok   beat 1: connect agent via consent screen  (271 ms click to connected)
-ok   allowed read: OK badge
-ok   beat 2: mark_invoice_paid is DENIED by the database
+ok   stage mode: copilot left, product right (Alice and Bob)
+ok   connect: Alice connects the agent through the consent screen  (254 ms)
+ok   connect: Bob connects the agent
+ok   connect after a database-only revoke goes back through the consent screen
+ok   beat 1: same question, different correct answers  (Alice 65 rows, Bob 11 rows (his customers only))
+ok   beat 2: the injected actions: mark_invoice_paid DENIED, contacts only from Alice's tenant, invoice unchanged
 ok   P2 denied badge  (font 55px, box 322x94 px at 1920x1080, contrast 6.6:1)
-ok   beat 3: denied send -> PROPOSAL CREATED chip and a live inbox card  (proposal badge font 55px, dashed border, contrast 9.0:1)
-ok   beat 4: Alice approves; the email is sent as Alice
-ok   beat 5: revoke (both halves); the next call is DENIED agent_grant_revoked
-ok   after revoke, Connect shows a fresh consent screen
-ok   deny returns to the app with a clear message
-ok   post-reset revoke: database grant revoked, no OAuth consent to revoke (not a failure)
+ok   beat 3: denied send -> PROPOSAL CREATED, live inbox card, Alice approves, sent as Alice  (proposal badge 55px, dashed, contrast 9.0:1)
+ok   beat 4: after the live policy, the agent sends under $500 (OK); over $500 is still DENIED + proposal
+ok   beat 5: Alice revokes (both halves); her agent's next call is DENIED agent_grant_revoked; Bob's still works
+ok   after the reset: Alice's grant shows active again; her OAuth consent is gone
+ok   revoke in that state: database grant revoked, 'none to revoke' for OAuth (not a failure)
+ok   runbook: reconnect after a reset shows the consent screen once, then the agent works

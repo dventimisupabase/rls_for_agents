@@ -1,0 +1,39 @@
+# Stage runbook
+
+How to run the five stage beats (`docs/context-packs/00_SHARED_CONTEXT.md` section 11) on the stage project.
+Secrets and the project ref live in `~/.ar-copilot/stage.env`, never in this repo.
+
+## Before every rehearsal
+
+1. **Reset stage** (under 60 s, idempotent):
+   ```sh
+   set -a; source ~/.ar-copilot/stage.env; set +a
+   scripts/reset-stage.sh
+   ```
+   This drops the live $500 policy, removes proposals and dunning emails, restores invoice statuses and
+   payment matches, and re-activates Alice's and Bob's agent grants (registered clients only). It cannot
+   restore OAuth consents, and beat 5 revoked Alice's.
+2. **Reconnect the agent for Alice and for Bob.** Sign in to the AR app at `/agent?stage=1`, click
+   **Connect agent**, and approve the consent screen. After a rehearsal the page may already show the grant
+   as active; reconnect anyway, because the OAuth consent behind it is gone and the agent's next token
+   refresh would fail mid-demo. If the agent still holds a working token, Connect says so; if the database
+   grant is missing, Connect goes back through the consent screen on its own.
+3. **Warm the runtime.** Ask one harmless question in the copilot (for example, the overdue invoices over
+   a year old). The first runtime call includes a cold start of about 3 s (spike).
+4. **Check the inbox is live.** Approvals shows a green "live" tag next to the subtitle.
+
+## During the talk
+
+- **Beat 4 (live policy).** The operator runs `supabase/stage/live_policy_500.sql` against stage (psql via
+  the session pooler, as `scripts/reset-stage.sh` does). The reset removes it.
+- **Beat 5 (revoke).** Alice clicks **Revoke agent access** on the Agent access page. It reports both halves:
+  the database grant (the agent's next call is refused) and the OAuth consent.
+
+## After
+
+Run the reset again (step 1). Leave reconnecting to the next rehearsal's checklist.
+
+## Rehearsing locally
+
+`scripts/e2e-apps.sh copilot` runs all five beats in stage mode against the local stack with the scripted dev
+agent (`scripts/dev-agent.ts --model scripted`), including the reset and reconnect steps above.

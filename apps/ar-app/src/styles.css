@@ -166,3 +166,5 @@ html.stage .msg { font-size: 1rem; }
 /* stage: badges get their own row and wrap, so two large badges never clip */
 html.stage .chip { grid-template-columns: 1fr; }
 html.stage .chip-badges { grid-column: 1; grid-row: auto; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.3rem; }
+.chip-rows { grid-column: 1 / -1; font-weight: 700; font-variant-numeric: tabular-nums; }
+html.stage .chip-rows { font-size: 1.6rem; }
