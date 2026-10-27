@@ -5,5 +5,7 @@
 06_reset_stage.test.sql ...... ok
 07_forgery.test.sql .......... ok
 08_app_reads.test.sql ........ ok
-Files=7, Tests=146, 17 wallclock secs ( 0.09 usr  0.03 sys +  0.13 cusr  0.07 csys =  0.32 CPU)
+09_agent_activity.test.sql ... ok
+All tests successful.
+Files=8, Tests=173, 21 wallclock secs ( 0.10 usr  0.04 sys +  0.13 cusr  0.08 csys =  0.35 CPU)
 Result: PASS
