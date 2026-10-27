@@ -121,6 +121,23 @@ try {
   assert.equal(new URL(page.url()).origin, APP);
   ok("?next= pointing off-site lands on the arena instead");
 
+  // A same-origin ?next= is honored (the consent round trip in step 4 depends on it).
+  await page.click("text=Sign out");
+  await page.waitForSelector("input[type=email]");
+  await page.goto(`${APP}/sign-in?next=${encodeURIComponent("/play?probe=1")}`);
+  await page.fill("input[type=email]", email);
+  await new Promise((r) => setTimeout(r, 5000));
+  const sent4 = Date.now();
+  await page.click("button.primary");
+  await page.waitForSelector("input.code");
+  await page.fill("input.code", (await codeFor(email, sent4)).code);
+  await page.click("button.primary");
+  await page.waitForSelector("[data-testid=handle]");
+  await page.waitForTimeout(300);
+  const landed = new URL(page.url());
+  assert.equal(landed.pathname + landed.search, "/play?probe=1");
+  ok("?next= inside the arena is where sign-in lands");
+
   // The legal guard: a production build refuses while the placeholder ships; a stage build does not.
   const out = mkdtempSync(join(tmpdir(), "arena-guard-"));
   const build = (args) => { try { execFileSync("npx", ["vite", "build", ...args, "--outDir", out, "--emptyOutDir"], { cwd: "apps/arena", stdio: "pipe" }); return 0; } catch (e) { return e.status ?? 1; } };

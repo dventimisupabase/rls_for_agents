@@ -1,10 +1,11 @@
 == arena:signin
 ok   signed out: sign-in page with the marked consent placeholder
-ok   new email: the code arrives by email, with no link  (240 ms)
+ok   new email: the code arrives by email, with no link  (239 ms)
 ok   a wrong code is refused and the player stays on the code step
-ok   signed in and provisioned: handle and company shown  (rapid-dingo, 627 ms from opening the page, typing by script)
+ok   signed in and provisioned: handle and company shown  (velvet-ocelot, 585 ms from opening the page, typing by script)
 ok   the database agrees: one player row, its own tenant, cloned invoices  (560 invoices)
 ok   reload: same handle, still one player row (provisioning is idempotent)
 ok   returning player: new code, same handle and company
 ok   ?next= pointing off-site lands on the arena instead
+ok   ?next= inside the arena is where sign-in lands
 ok   production build refuses while the consent text is a placeholder; stage build passes

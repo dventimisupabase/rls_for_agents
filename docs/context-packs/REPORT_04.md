@@ -83,12 +83,13 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
    - Look: "freight manifest" on a phone: a canary carbon-copy sheet on kraft, form-ink navy, manifest cells
      for fields, Big Shoulders Stencil for the wordmark, handle and code, Archivo for text; the cargo-tag orange
      is spent on one thing, the handle.
-   - Evidence: `apps/arena/e2e/signin.e2e.mjs` at an iPhone 14 viewport, code read from Mailpit, 9 steps pass
+   - Evidence: `apps/arena/e2e/signin.e2e.mjs` at an iPhone 14 viewport, code read from Mailpit, 10 steps pass
      (`evidence/A_signin_e2e_local.txt`): new email gets a code with no link; a wrong code is refused; a pasted
      code with a space works; handle and company shown about 0.6 s after opening the page with scripted typing
      (P4's 60 s is mostly the human reading an email); the database has one player row, its own tenant and 560
      cloned invoices; reload and a returning sign-in keep the same handle; an off-site `?next=` lands in the
-     arena; the production build refuses and the stage build passes. Screenshots: `evidence/A_signin_email_390.png`,
+     arena and a same-origin one is honored (this caught a race: the signed-in branch of `/sign-in` used to
+     send everyone to `/` before the page's own redirect ran); the production build refuses and the stage build passes. Screenshots: `evidence/A_signin_email_390.png`,
      `evidence/A_player_tag_390.png`. `scripts/e2e-apps.sh` now takes `<app>:<test>` (for example `arena:signin`).
 3. Brief page: rules, the four flags, the `KST-2026-####` hint, what counts as a capture, the prize, the "found
    a real hole?" policy; text the humans still owe is marked TBD.
