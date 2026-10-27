@@ -8,7 +8,9 @@ Hosting, S3 + CloudFront, or elsewhere). The AR app's dev server runs on port 30
 because the Supabase Site URL is `http://localhost:3000` and the auth server sends consent requests to
 Site URL + `/oauth/consent`. The local stack is the pack 02 stack (CLI 2.122.0, ports 5532x).
 
-**Layout.** npm workspaces at the repo root:
+**Layout.** npm workspaces rooted at `apps/package.json` (not the repo root: a root `package.json` makes
+Deno resolve `npm:` imports in `scripts/`, `evals/` and `supabase/` against the repo's `node_modules`,
+which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the move):
 - `apps/shared/`: code both apps mount, starting with the OAuth consent page (`src/consent/`).
 - `apps/ar-app/`: the stage and booth product (sign-in, consent route, home so far).
 - `apps/arena/`: not started.
@@ -67,9 +69,24 @@ authorization: removing it changes nothing about what anyone may do.
    "authorization not found". Fix in the app: concurrent loads of one authorization share one request
    (unit and integration tests cover it). Worth reporting to the Supabase Auth team.
 2. **An authorization is bound to the first user who opens it.** If Bob opens a consent request, signs
-   out and Alice signs in, Alice gets 404 for that request. This helps with the CC-6 identity mix-up
-   risk (a request started under one session can't be completed by another). The page now says the
-   request "expired or was started for a different account".
+   out and Alice signs in, Alice gets 404 for that request. The page now says the request "expired or
+   was started for a different account". This does **not** address the CC-6 identity mix-up: there,
+   the browser holds user A's session, so A both opens and completes the authorization, and AgentCore
+   then binds the resulting token to user B (who started the flow). Nothing crosses users at the
+   Supabase layer. The mitigation remains the runtime's check that the vault token's `sub` equals the
+   inbound JWT's `sub` (pack 03). "Signed in as ..." on the consent screen is a cue a person may
+   notice, not a control.
+
+## Not yet verified or built
+
+- **Stage.** All evidence above is local. Stage's Site URL is `http://localhost:3000`, so the same app
+  pointed at stage's URL and publishable key would serve stage's consent requests, but that has not been
+  run. A stage smoke test with the real agent client leaves a remembered consent for that user that
+  `reset_stage.sql` cannot clear (clean up with `revoke_agent` plus `oauth.revokeGrant`), which decides
+  whether the "Connect agent" beat shows a consent screen.
+- **The rest of 3LO.** The consent page is one leg. The return-URL handler that calls
+  `CompleteResourceTokenAuth` (IAM, CC-6) and the app's open, return, bind, re-invoke sequence are not
+  built; where the binding call lives is a pack 03 decision.
 
 ## Judgment calls
 

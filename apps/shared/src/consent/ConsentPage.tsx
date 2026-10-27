@@ -1,6 +1,6 @@
 // Mounted at /oauth/consent by both apps (the auth server sends users to Site URL + that path).
 // Renders whatever flow.ts returns; every decision is made by the auth server or Postgres.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { approveConsent, consentErrorText, denyConsent, loadConsent, type ConsentClient, type ConsentView } from "./flow.ts";
 
 const SCOPE_TEXT: Record<string, string> = {
@@ -11,6 +11,8 @@ const SCOPE_TEXT: Record<string, string> = {
   offline_access: "Stay connected until you revoke access",
 };
 
+const assign = (url: string) => window.location.assign(url);
+
 type Props = {
   sb: ConsentClient;
   authorizationId: string | null;
@@ -19,7 +21,7 @@ type Props = {
   go?: (url: string) => void;
 };
 
-export function ConsentPage({ sb, authorizationId, onNeedsSignIn, onSignOut, go = (u) => window.location.assign(u) }: Props) {
+export function ConsentPage({ sb, authorizationId, onNeedsSignIn, onSignOut, go = assign }: Props) {
   const [view, setView] = useState<ConsentView | { kind: "loading" }>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
 
@@ -29,7 +31,12 @@ export function ConsentPage({ sb, authorizationId, onNeedsSignIn, onSignOut, go 
     return () => { live = false; };
   }, [sb, authorizationId]);
 
+  // Act once per result: a re-render (for example a session refresh) must not navigate to the
+  // code-bearing callback a second time.
+  const handled = useRef<unknown>(null);
   useEffect(() => {
+    if (handled.current === view) return;
+    handled.current = view;
     if (view.kind === "needs_sign_in") onNeedsSignIn();
     if (view.kind === "redirect") go(view.url);
   }, [view, onNeedsSignIn, go]);

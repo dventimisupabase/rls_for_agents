@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Browser checks for the apps. Needs the local stack and the AR app dev server
-# (npm run dev -w @ar/ar-app, port 3000). First run: npx playwright install --only-shell chromium
+# (cd apps && npm run dev -w @ar/ar-app, port 3000). First run: npx playwright install --only-shell chromium
 set -euo pipefail
 cd "$(dirname "$0")/.."
 SUPABASE="${SUPABASE:-npx --yes supabase@2.122.0}"
