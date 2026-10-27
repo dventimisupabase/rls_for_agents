@@ -180,6 +180,12 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
    - Evidence: `play.e2e.mjs` now 12 steps (`evidence/A_play_e2e_local.txt`): paused shows the copy, Send again
      resends the same message, only the newest notice offers it; limit reached shows its copy and the next turn
      works. Screenshot: `evidence/A_paused_390.png`.
+   - Follow-up (2026-10-27, after playing locally): an expired AWS SSO login on the dev agent showed its raw
+     error to the player. Now any error the arena has no wording for, including `internal`, reads "Something
+     went wrong on our side. Nothing is lost: send your message again." with Send again; the raw detail goes to
+     the browser console. The AR app keeps showing the raw message (a presenter wants it). Shared
+     `errorMessage()` with unit tests; `/simulate internal` in the scripted dev agent; `play.e2e.mjs` now 13
+     steps (no raw runtime text on screen). AR e2e (41 steps) unchanged.
 7. Tests: e2e at a phone viewport (code read from the local mail catcher, provisioning, connect, first prompt,
    timed against P4's 60 s), and a P6 check that the arena never reads other players' prompts.
    **Done (2026-10-27).**

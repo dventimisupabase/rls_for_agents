@@ -1,7 +1,7 @@
 // Copilot panel, shared by the AR app and the arena. It renders the agent's event stream (CC-8). Every
 // badge comes from the tool's own envelope; the panel decides nothing about what the agent may do.
 import { useEffect, useRef, useState } from "react";
-import { reduce, type Badge, type Item, type Transcript } from "./transcript.ts";
+import { errorMessage, reduce, type Badge, type Item, type Transcript } from "./transcript.ts";
 import type { AgentClient } from "./types.ts";
 
 const BADGE_TEXT: Record<Badge, string> = { ok: "OK", denied: "DENIED", proposal: "PROPOSAL CREATED", error: "ERROR" };
@@ -58,7 +58,7 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, plac
   const [session, setSession] = useState(newSession);
   const abort = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
-  const text_ = (code: string) => errorText?.[code] ?? ERROR_TEXT[code];
+  const text_ = (code: string, raw = "") => errorMessage(code, raw, ERROR_TEXT, errorText);
   const lastPrompt = useRef<string | undefined>(undefined);
   const resumed = useRef(false);
 
@@ -82,11 +82,15 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, plac
     abort.current = new AbortController();
     try {
       for await (const ev of agent.send(jwt, session, text, abort.current.signal)) {
-        const shown = ev.type === "error" ? { ...ev, message: text_(ev.code) ?? ev.message } : ev;
+        if (ev.type === "error") console.warn(`agent error ${ev.code}: ${ev.message}`);  // the raw detail, for developers
+        const shown = ev.type === "error" ? { ...ev, message: text_(ev.code, ev.message) } : ev;
         setItems((t) => reduce(t, shown));
       }
     } catch (err) {
-      if ((err as Error).name !== "AbortError") setItems((t) => reduce(t, { type: "error", code: "internal", message: (err as Error).message }));
+      if ((err as Error).name !== "AbortError") {
+        console.warn(`agent request failed: ${(err as Error).message}`);
+        setItems((t) => reduce(t, { type: "error", code: "internal", message: text_("internal", (err as Error).message) }));
+      }
     }
     setBusy(false);
   };

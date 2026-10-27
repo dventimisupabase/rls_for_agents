@@ -50,7 +50,8 @@ Deno.test("corsHeaders: echoes only an allowed origin", () => {
 Deno.test("simulated: scripted mode can stand in for the runtime's kill switch and limits", () => {
   assertEquals(simulated("/simulate paused"), "paused");
   assertEquals(simulated("  /simulate limit_reached\n"), "limit_reached");
-  assertEquals(simulated("/simulate access_revoked"), null);  // only what pack 03 decides, nothing identity-related
+  assertEquals(simulated("/simulate internal"), "internal");  // a turn that fails inside the runtime
+  assertEquals(simulated("/simulate access_revoked"), null);  // nothing identity-related
   assertEquals(simulated("/call whoami"), null);
   assertEquals(simulated("hello"), null);
 });

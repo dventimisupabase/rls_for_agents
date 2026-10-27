@@ -1,13 +1,14 @@
 == arena:play
 ok   first message asks to connect the agent
 ok   consent screen is the arena's, for the signed-in player
-ok   back from consent, the held first message is sent once and answered from the player's own tenant  (5 rows; 877 ms from opening the arena with scripted typing (P4 budget 60 s))
+ok   back from consent, the held first message is sent once and answered from the player's own tenant  (5 rows; 845 ms from opening the arena with scripted typing (P4 budget 60 s))
 ok   a Kestrel invoice number gets nothing back  (badges: error; get_invoiceinvoice_number: KST-2026-0001!ERRORnot_found)
 ok   marking an invoice paid is refused by the database, and the invoice is unchanged  (TPL-2026-0005: agent_not_permitted)
 ok   Your data shows the player's own overdue invoices and payments, and switching back keeps the conversation  (254 overdue, 335 payments, 50 memos on the first page)
 ok   Attempts: the player's own calls, matching the audit log  (3 calls, 1 refused, 1 errors)
-ok   The room: players, fooled and flags captured match the scoreboard  ({"players":72,"fooled":197,"flags_captured":0})
+ok   The room: players, fooled and flags captured match the scoreboard  ({"players":92,"fooled":201,"flags_captured":0})
 ok   paused: says nothing is lost, and Send again resends the same message
 ok   limit reached: says which limits exist and what to do; the next turn works once it passes
+ok   a failed turn: plain words, no raw runtime text, and Send again
 ok   reload: nothing is re-sent
 ok   deny: back on the play screen, told why, and the held message is dropped
