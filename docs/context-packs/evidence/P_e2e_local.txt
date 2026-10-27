@@ -1,0 +1,22 @@
+== consent
+ok   no session: sign-in keeps the consent request in ?next=
+ok   consent screen names the signed-in user
+ok   allow: redirected to the agent callback with a code  (449 ms from authorize)
+ok   remembered consent: no screen, code issued
+ok   not you? sign out: back to sign-in with the request kept
+ok   another user cannot complete a request opened by someone else
+ok   deny: callback gets error=access_denied
+== views
+ok   alice: overview with aging buckets and KPIs  (1876 overdue, 31 unmatched)
+ok   alice: overdue invoices paged server-side  (Previous1-50 of 1876Next)
+ok   alice: customer detail with contacts and invoices  (Copperleaf Electric Co)
+ok   alice: unmatched payments show remittance memos
+ok   bob: sees only his customers' invoices and no unmatched payments  (278 overdue, 0 unmatched)
+ok   P3: proposals appear in alice's inbox live  (ms: 288, 799, 305, 794, 197; max 799)
+ok   card shows who requested it: user + agent
+ok   agent send is denied and its proposal appears  (793 ms, reason agent_not_permitted)
+ok   bob's approve is refused by the database, not hidden by the app
+ok   alice approves: executed as alice (decided_by_client null), payment matched
+ok   approved send goes out as the human (sent_by_client null)
+ok   decided view lists the outcome and who decided
+ok   after revocation the agent's next call is denied  (agent_grant_revoked)

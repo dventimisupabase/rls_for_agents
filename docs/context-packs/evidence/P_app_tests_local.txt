@@ -1,0 +1,14 @@
+> test
+> vitest run
+ RUN  v5.0.5 /Users/davida.ventimiglia/Work/rls_for_agents/apps/ar-app
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  07:30:21
+   Duration  73ms (tests 53%, import 21%, transform 16%, worker 9%)
+> test
+> vitest run
+ RUN  v5.0.5 /Users/davida.ventimiglia/Work/rls_for_agents/apps/shared
+ Test Files  3 passed (3)
+      Tests  35 passed (35)
+   Start at  07:30:21
+   Duration  617ms (tests 95%, import 3%, transform 1%)

@@ -4,6 +4,13 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } fr
 import { safeNext, signInPath } from "@ar/shared/auth/next.ts";
 import { ConsentPage } from "@ar/shared/consent/ConsentPage.tsx";
 import type { ConsentClient } from "@ar/shared/consent/flow.ts";
+import { Layout } from "./Layout.tsx";
+import { Approvals } from "./pages/Approvals.tsx";
+import { CustomerPage, Customers } from "./pages/Customers.tsx";
+import { Dunning } from "./pages/Dunning.tsx";
+import { Invoices } from "./pages/Invoices.tsx";
+import { Overview } from "./pages/Overview.tsx";
+import { Payments } from "./pages/Payments.tsx";
 import { sb } from "./supabase.ts";
 
 function useSession() {
@@ -63,23 +70,23 @@ function Consent() {
   );
 }
 
-function Home({ session }: { session: Session }) {
-  return (
-    <main className="home">
-      <p>Signed in as <strong>{session.user.email}</strong></p>
-      <button className="secondary" onClick={() => sb.auth.signOut()}>Sign out</button>
-    </main>
-  );
-}
-
 export function App() {
   const session = useSession();
+  const location = useLocation();
   if (session === undefined) return null;
   return (
     <Routes>
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/oauth/consent" element={<Consent />} />
-      <Route path="/" element={session ? <Home session={session} /> : <Navigate to="/sign-in" replace />} />
+      <Route element={session ? <Layout session={session} /> : <Navigate to={signInPath(location.pathname)} replace />}>
+        <Route path="/" element={<Overview />} />
+        <Route path="/invoices" element={<Invoices />} />
+        <Route path="/customers" element={<Customers />} />
+        <Route path="/customers/:id" element={<CustomerPage />} />
+        <Route path="/payments" element={<Payments />} />
+        <Route path="/dunning" element={<Dunning />} />
+        <Route path="/approvals" element={<Approvals />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
