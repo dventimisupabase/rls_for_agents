@@ -128,3 +128,7 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
   vault token, and the next request gets `consent_required`.
 - The return-URL handler for 3LO (`CompleteResourceTokenAuth`, CC-6) is outside this stream; the app calls it
   through `AgentClient.completeConnect(params)` when the user lands back on the return URL.
+- `connect` should confirm the held vault token still works, not just that one exists: a vault token survives
+  "Revoke agent access" until it expires. The dev agent forces a refresh (refused once the app has revoked the
+  OAuth consent) and, on failure, drops the token and returns `consent_required`. It does not call the database
+  directly for this check, so the agent path stays MCP-only and audited.

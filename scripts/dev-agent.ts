@@ -103,12 +103,11 @@ async function invocations(req: Request): Promise<Response> {
     if (t === "revoked") { await emit({ type: "error", code: "access_revoked", message: "Agent access was revoked. Connect again to continue." }); return; }
     if (!t) { await emit({ type: "consent_required", url: await consentUrl(who.sub) }); return; }
     if (body.action === "connect") {
-      // "Connect" means: hold a token that works now. Force a refresh (fails once the OAuth consent is revoked)
-      // and check the database grant; otherwise drop the token and ask for consent again.
+      // "Connect" means: hold a token that still works. Force a refresh, which fails once the OAuth consent is
+      // revoked (the app's revoke always clears it); then drop the token and ask for consent again. No direct
+      // database call here: the agent reaches Postgres only through the MCP server.
       const fresh = await tokenRequest({ grant_type: "refresh_token", refresh_token: t.refresh });
-      const w = fresh ? await (await fetch(`${SB}/rest/v1/rpc/whoami`, { method: "POST",
-        headers: { apikey: ANON, authorization: `Bearer ${fresh.access}`, "content-type": "application/json" }, body: "{}" })).json() : null;
-      if (!fresh || !w?.agent_grant_active || claims(fresh.access).sub !== who.sub) {
+      if (!fresh || claims(fresh.access).sub !== who.sub) {
         vault.delete(who.sub);
         await emit({ type: "consent_required", url: await consentUrl(who.sub) });
         return;

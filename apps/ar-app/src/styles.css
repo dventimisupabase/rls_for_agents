@@ -160,7 +160,7 @@ html.stage .badge-denied { padding: 0.1em 0.45em; }
 html.stage .badge-proposal { border-width: 4px; }
 html.stage .badge-ok { font-size: 1.1rem; }
 html.stage .card.proposal { border-width: 3px; }
-html.stage .pill-proposal { font-size: 1.1rem; }
+html.stage .card .pill-proposal { font-size: 2rem; font-weight: 800; text-transform: uppercase; border: 3px dashed #b54708; }
 html.stage .outcome-denied .badge-denied { font-size: 2.5rem; }
 html.stage .msg { font-size: 1rem; }
 /* stage: badges get their own row and wrap, so two large badges never clip */

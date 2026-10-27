@@ -135,6 +135,20 @@ try {
   await page.click(".consent-actions >> text=Deny");
   await page.waitForSelector(".banner-error:has-text('declined')");
   ok("deny returns to the app with a clear message");
+
+  // After a rehearsal the stage reset re-activates the database grant but cannot restore the OAuth consent.
+  // Revoke must still succeed (nothing to revoke on the OAuth side is not a failure).
+  execFileSync("psql", [DB_URL, "-Xq", "--single-transaction", "-v", "ON_ERROR_STOP=1", "-f", "supabase/stage/reset_stage.sql"],
+    { stdio: ["ignore", "ignore", "pipe"] });
+  await page.goto("http://localhost:3000/agent");
+  const row = page.locator("[data-status=active]", { hasText: "(local dev)" });
+  await row.waitFor();
+  await row.locator("text=Revoke agent access").click();
+  await page.waitForSelector("[data-testid=revoke-result]");
+  const after = await page.textContent("[data-testid=revoke-result]");
+  assert.match(after, /Database grant: revoked/);
+  assert.match(after, /OAuth consent: none to revoke/);
+  ok("post-reset revoke: database grant revoked, no OAuth consent to revoke (not a failure)");
 } finally {
   await browser.close();
   // End like a rehearsal (the stage reset). Then drop the dev agent's grant again, since the reset re-activates

@@ -78,7 +78,7 @@ export function AgentAccess() {
           <strong>Access revoked for {revoked.name}.</strong>
           <ul>
             <li>Database grant: {revoked.database.ok ? "revoked (the agent's next call is refused)" : `failed: ${revoked.database.message}`}</li>
-            <li>OAuth consent: {revoked.oauth.ok ? "revoked (no refresh; consent is asked again)" : `failed: ${revoked.oauth.message}`}</li>
+            <li>OAuth consent: {revoked.oauth.ok ? (revoked.oauth.already ? "none to revoke (consent is asked again)" : "revoked (no refresh; consent is asked again)") : `failed: ${revoked.oauth.message}`}</li>
           </ul>
         </div>
       )}

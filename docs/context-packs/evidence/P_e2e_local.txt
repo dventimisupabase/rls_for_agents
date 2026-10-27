@@ -1,7 +1,7 @@
 == consent
 ok   no session: sign-in keeps the consent request in ?next=
 ok   consent screen names the signed-in user
-ok   allow: redirected to the agent callback with a code  (394 ms from authorize)
+ok   allow: redirected to the agent callback with a code  (338 ms from authorize)
 ok   remembered consent: no screen, code issued
 ok   not you? sign out: back to sign-in with the request kept
 ok   another user cannot complete a request opened by someone else
@@ -12,9 +12,9 @@ ok   alice: overdue invoices paged server-side  (Previous1-50 of 1876Next)
 ok   alice: customer detail with contacts and invoices  (Copperleaf Electric Co)
 ok   alice: unmatched payments show remittance memos
 ok   bob: sees only his customers' invoices and no unmatched payments  (278 overdue, 0 unmatched)
-ok   P3: proposals appear in alice's inbox live  (ms: 796, 805, 197, 793, 201; max 805)
+ok   P3: proposals appear in alice's inbox live  (ms: 792, 300, 807, 188, 795; max 807)
 ok   card shows who requested it: user + agent
-ok   agent send is denied and its proposal appears  (795 ms, reason agent_not_permitted)
+ok   agent send is denied and its proposal appears  (185 ms, reason agent_not_permitted)
 ok   bob's approve is refused by the database, not hidden by the app
 ok   alice approves: executed as alice (decided_by_client null), payment matched
 ok   approved send goes out as the human (sent_by_client null)
@@ -22,7 +22,7 @@ ok   decided view lists the outcome and who decided
 ok   after revocation the agent's next call is denied  (agent_grant_revoked)
 == copilot
 ok   stage mode: copilot left, product right
-ok   beat 1: connect agent via consent screen  (265 ms click to connected)
+ok   beat 1: connect agent via consent screen  (271 ms click to connected)
 ok   allowed read: OK badge
 ok   beat 2: mark_invoice_paid is DENIED by the database
 ok   P2 denied badge  (font 55px, box 322x94 px at 1920x1080, contrast 6.6:1)
@@ -31,3 +31,4 @@ ok   beat 4: Alice approves; the email is sent as Alice
 ok   beat 5: revoke (both halves); the next call is DENIED agent_grant_revoked
 ok   after revoke, Connect shows a fresh consent screen
 ok   deny returns to the app with a clear message
+ok   post-reset revoke: database grant revoked, no OAuth consent to revoke (not a failure)

@@ -26,7 +26,7 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
 | ID | Criterion | Status |
 |----|-----------|--------|
 | P1 | Stage beats 1-5 driven from the AR app in stage mode | **Blocked on pack 03.** Beats 1-5 are rehearsed end to end in stage mode against the local dev agent (scripted, `copilot.e2e.mjs`); P1 needs the real runtime. |
-| P2 | Denials and proposals unmistakable from 10 m | **Pass by measurement, locally**: stage-mode badges are 55 px at 1920x1080 (cap height about 8 cm on a 4 m wide image), white on red 6.6:1, brown on cream 9.0:1, and differ by word, icon and shape (solid block vs dashed rounded tag). Not yet checked on a real projector. |
+| P2 | Denials and proposals unmistakable from 10 m | **Pass by measurement, locally**: stage-mode copilot badges are 55 px at 1920x1080 (cap height about 8 cm on a 4 m wide image), white on red 6.6:1, brown on cream 9.0:1, and differ by word, icon and shape (solid block vs dashed rounded tag); the inbox card's PROPOSAL label is 44 px with the same dashed tag. Not yet checked on a real projector. |
 | P3 | Realtime approvals in under 2 s | **Pass locally**: across three runs, 15 agent proposals appeared in the open inbox in 80 to 799 ms (the evidence file holds the last run). Stage not measured. |
 | P4 | Arena: QR to first prompt in under 60 s on a phone | Not started. Blocked on D3 (needs a hosted URL) and pack 03. |
 | P5 | No authorization logic in the apps | Holds for the consent page, AR views, approvals inbox, agent access page and copilot panel (reviews below). |
@@ -233,8 +233,13 @@ succeeds is decided by Postgres and the auth server. Stage mode is presentation 
 3. **No grant write on the remembered branch.** Writing one would re-enable a revoked grant without a
    click whenever someone gets the user to load an authorize URL. The app's revoke action clears both
    halves (`revoke_agent` and `oauth.revokeGrant`), so a revoked user always sees a fresh screen.
-   Known gap: `reset_stage.sql` re-activates stage grants but cannot reset remembered consents
-   (REPORT_02 call 28); that is consistent, since both halves end up active.
+   **After a rehearsal the halves disagree:** beat 5 revokes both, then `reset_stage.sql` re-activates the
+   database grant but cannot restore the OAuth consent. The agent page then shows the grant as active, an
+   AgentCore vault token keeps working until it expires, and its next refresh fails (consent required).
+   Revoke in that state works (the missing consent is reported as "none to revoke", e2e step). Decision for
+   the humans: (a) the reset stops re-activating grants, so every rehearsal starts at "Connect agent" (changes
+   the S9 reset and its `06` assertion), or (b) keep it and add "reconnect the agent before a rehearsal" to the
+   runbook.
 4. **AR app sign-in is email + password** (Alice and Bob are seeded users). The arena will use magic
    links per pack 04.
 5. **Playwright for browser checks**, run from `scripts/e2e-apps.sh`. The e2e scripts register a
@@ -250,11 +255,10 @@ succeeds is decided by Postgres and the auth server. Stage mode is presentation 
 8. **Aging amounts are invoice totals** for open and partial invoices; there is no paid-to-date column,
    so partial invoices count at full value. The Overview labels the total "Open invoice value", not "outstanding".
 9. **Connect validates the held token** (dev agent). A vault token survives a revoke until it expires, so
-   "Connect" alone would report "connected" while every call is denied. Connect forces a refresh (fails after
-   the OAuth consent is revoked) and checks `whoami.agent_grant_active`; on failure it drops the token and
-   asks for consent. Suggested for the AgentCore runtime too (CC-8 behaviors). Known edge: if only the
-   database grant is revoked (not via the app) while the OAuth consent is still remembered, consent is
-   auto-approved without writing a grant, so the agent stays denied until the user revokes from the app.
+   "Connect" alone would report "connected" while every call is denied. Connect forces a refresh, which
+   fails once the OAuth consent is revoked (the app's revoke always clears it), then drops the token and asks
+   for consent. Refresh only, no direct database check: the agent reaches Postgres only through the MCP
+   server. Proposed for the AgentCore runtime in CC-8.
 10. **Text arrives per turn, not per token.** The shared loop uses Converse (request/response); tool chips
    still appear live as each call starts and finishes. Token streaming (ConverseStream) can be added if the
    stage beats need it.

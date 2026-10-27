@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { revokeBoth, type AccessClient } from "./access.ts";
 
-function fake(db: "ok" | "denied" | "error", oauth: "ok" | "error") {
+function fake(db: "ok" | "denied" | "error", oauth: "ok" | "error" | "none") {
   const calls: string[] = [];
   const sb: AccessClient = {
     rpc: async (fn, args) => {
@@ -11,6 +11,7 @@ function fake(db: "ok" | "denied" | "error", oauth: "ok" | "error") {
     },
     auth: { oauth: { revokeGrant: async (o) => {
       calls.push(`oauth:${o.clientId}`);
+      if (oauth === "none") return { data: null, error: { message: "No active grant found for this client", status: 404, code: "oauth_consent_not_found" } };
       return { data: null, error: oauth === "error" ? { message: "oauth down" } : null };
     } } },
   };
@@ -33,6 +34,13 @@ describe("revokeBoth", () => {
   it("reports a database refusal as returned", async () => {
     const { sb } = fake("denied", "ok");
     expect((await revokeBoth(sb, "c1")).database).toEqual({ ok: false, message: "human_only" });
+  });
+
+  // After a stage reset the database grant is active again but the OAuth consent is gone; the server
+  // answers 404 oauth_consent_not_found. Nothing to revoke is not a failure.
+  it("treats a missing OAuth consent as already revoked", async () => {
+    const { sb } = fake("ok", "none");
+    expect((await revokeBoth(sb, "c1")).oauth).toEqual({ ok: true, already: true });
   });
 
   it("reports an OAuth failure", async () => {
