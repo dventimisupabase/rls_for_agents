@@ -83,6 +83,23 @@ try {
   ok("alice: unmatched payments show remittance memos");
   if (SHOTS) await a.screenshot({ path: `${SHOTS}/P_payments_alice_local.png` });
 
+  // Projector mode without touching the URL: the top bar button, a reload (kept for the tab), the shortcut
+  const isStage = () => a.evaluate(() => document.documentElement.classList.contains("stage"));
+  await a.click("[data-testid=stage-toggle]");
+  await a.waitForSelector(".shell-stage .stage-copilot .copilot");
+  await a.reload();
+  await a.waitForSelector(".shell-stage .stage-copilot .copilot");
+  assert.equal(await a.textContent("[data-testid=stage-toggle]"), "Exit projector mode");
+  await a.keyboard.press("Alt+Shift+KeyP");
+  await a.waitForSelector(".shell:not(.shell-stage)");
+  assert.equal(await isStage(), false);
+  await a.keyboard.press("Alt+Shift+KeyP");
+  await a.waitForSelector(".shell-stage");
+  await a.click("[data-testid=stage-toggle]");
+  await a.waitForSelector(".shell:not(.shell-stage)");
+  assert.equal(await isStage(), false);
+  ok("alice: projector mode toggles from the top bar and Alt+Shift+P, survives a reload");
+
   // ---- Bob (rep): only his customers; unmatched payments are admin-only
   const b = await signedIn("bob@brightwater.example");
   const bobOverdue = Number(await kpi(b, "Overdue invoices"));

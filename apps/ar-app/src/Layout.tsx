@@ -5,19 +5,32 @@ import { CopilotPanel } from "@ar/shared/agent/CopilotPanel.tsx";
 import { agent, getJwt, openConsent } from "./agent.ts";
 import { myMemberships, pendingActions } from "./lib/data.ts";
 import { LiveProvider, useLive } from "./lib/live.tsx";
+import { isStageShortcut, readStage, stageFromQuery, writeStage } from "./lib/stage.ts";
 import { useAsync } from "./lib/ui.tsx";
 import { sb } from "./supabase.ts";
 
-// Stage mode (?stage=1, kept for the browser session; ?stage=0 turns it off): large type, high contrast,
-// copilot on the left and the product on the right, sized for a projector and a recording.
+// Stage (projector) mode: large type, high contrast, copilot on the left and the product on the right, sized
+// for a projector and a recording. Toggled by the top bar button or Alt+Shift+P; ?stage=1 / ?stage=0 still work.
 function useStageMode() {
   const [params] = useSearchParams();
-  const q = params.get("stage");
-  if (q === "1") sessionStorage.setItem("stage", "1");
-  if (q === "0") sessionStorage.removeItem("stage");
-  const stage = sessionStorage.getItem("stage") === "1";
-  useEffect(() => { document.documentElement.classList.toggle("stage", stage); }, [stage]);
-  return stage;
+  const q = stageFromQuery(params.get("stage"));
+  const [stage, setStage] = useState(() => q ?? readStage(sessionStorage));
+  // Apply the query only when it changes, so the toggle isn't overridden while ?stage=1 stays in the URL.
+  useEffect(() => { if (q !== null) setStage(q); }, [q]);
+  useEffect(() => {
+    writeStage(sessionStorage, stage);
+    document.documentElement.classList.toggle("stage", stage);
+  }, [stage]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!isStageShortcut(e)) return;
+      e.preventDefault();
+      setStage((s) => !s);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  return [stage, () => setStage((s) => !s)] as const;
 }
 
 function Nav() {
@@ -38,7 +51,7 @@ function Nav() {
 }
 
 export function Layout({ session }: { session: Session }) {
-  const stage = useStageMode();
+  const [stage, toggleStage] = useStageMode();
   const [drawer, setDrawer] = useState(() => localStorage.getItem("copilot") === "open");
   useEffect(() => { localStorage.setItem("copilot", drawer ? "open" : "closed"); }, [drawer]);
   const m = useAsync(() => myMemberships(session.user.id), [session.user.id]);
@@ -52,6 +65,8 @@ export function Layout({ session }: { session: Session }) {
         <header className="topbar">
           <span className="brand">{first?.tenants.name ?? "Accounts receivable"}</span>
           <span className="who">
+            <button className="link" data-testid="stage-toggle" aria-pressed={stage} title="Projector mode (Alt+Shift+P)"
+              onClick={toggleStage}>{stage ? "Exit projector mode" : "Projector mode"}</button>
             {!stage && <button className="link" onClick={() => setDrawer((d) => !d)}>{drawer ? "Hide copilot" : "Copilot"}</button>}
             {session.user.email}
             {first && <span className="role">{first.role}</span>}

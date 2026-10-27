@@ -13,7 +13,8 @@ Secrets and the project ref live in `~/.ar-copilot/stage.env`, never in this rep
    This drops the live $500 policy, removes proposals and dunning emails, restores invoice statuses and
    payment matches, and re-activates Alice's and Bob's agent grants (registered clients only). It cannot
    restore OAuth consents, and beat 5 revoked Alice's.
-2. **Reconnect the agent for Alice and for Bob.** Sign in to the AR app at `/agent?stage=1`, click
+2. **Reconnect the agent for Alice and for Bob.** Sign in to the AR app at `/agent?stage=1` (or click
+   **Projector mode** in the top bar, or press Alt+Shift+P; it stays on for that browser tab), click
    **Connect agent**, and approve the consent screen. After a rehearsal the page may already show the grant
    as active; reconnect anyway, because the OAuth consent behind it is gone and the agent's next token
    refresh would fail mid-demo. If the agent still holds a working token, Connect says so; if the database
