@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { dunning } from "../lib/data.ts";
 import { useLive } from "../lib/live.tsx";
 import { DateCell, ErrorBox, Money, PageHeader, Pager, Pill, useAsync } from "../lib/ui.tsx";
@@ -27,7 +28,7 @@ export function Dunning() {
               const row = (
                 <tr key={d.id} className="clickable" onClick={() => setOpen(open === d.id ? null : d.id)}>
                   <td><DateCell value={status === "sent" ? d.sent_at : d.created_at} /></td>
-                  <td className="mono">{d.invoices?.invoice_number}</td>
+                  <td>{d.invoices && <Link className="mono" to={`/invoices/${d.invoices.id}`} onClick={(e) => e.stopPropagation()}>{d.invoices.invoice_number}</Link>}</td>
                   <td>{d.to_email}</td>
                   <td>{d.subject}</td>
                   <td>{agent ? <Pill tone="agent">agent</Pill> : <Pill tone="muted">person</Pill>}</td>

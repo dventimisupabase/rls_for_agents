@@ -9,7 +9,7 @@ import { AgentAccess } from "./pages/Agent.tsx";
 import { Approvals } from "./pages/Approvals.tsx";
 import { CustomerPage, Customers } from "./pages/Customers.tsx";
 import { Dunning } from "./pages/Dunning.tsx";
-import { Invoices } from "./pages/Invoices.tsx";
+import { InvoicePage, Invoices } from "./pages/Invoices.tsx";
 import { Overview } from "./pages/Overview.tsx";
 import { Payments } from "./pages/Payments.tsx";
 import { sb } from "./supabase.ts";
@@ -82,6 +82,7 @@ export function App() {
       <Route element={session ? <Layout session={session} /> : <Navigate to={signInPath(location.pathname + location.search)} replace />}>
         <Route path="/" element={<Overview />} />
         <Route path="/invoices" element={<Invoices />} />
+        <Route path="/invoices/:id" element={<InvoicePage />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/:id" element={<CustomerPage />} />
         <Route path="/payments" element={<Payments />} />

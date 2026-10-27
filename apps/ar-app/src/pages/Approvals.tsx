@@ -2,16 +2,20 @@
 // person's own session, so the action executes as the human (I5). Whether this person may decide is
 // the database's call: the buttons are shown to everyone and a refusal is displayed as returned.
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import { decide, pendingActions, type Envelope, type PendingAction } from "../lib/data.ts";
 import { money, timeAgo } from "../lib/format.ts";
 import { useLive } from "../lib/live.tsx";
 import { ErrorBox, PageHeader, Pill, useAsync } from "../lib/ui.tsx";
 
-const TITLE: Record<PendingAction["action"], string> = {
+export const TITLE: Record<PendingAction["action"], string> = {
   send_dunning_email: "Send dunning email",
   payment_match: "Match payment to invoice",
   mark_invoice_paid: "Mark invoice paid",
 };
+
+const InvoiceLink = ({ s }: { s: Record<string, string> }) =>
+  s.invoice_id ? <Link className="mono" to={`/invoices/${s.invoice_id}`}>{s.invoice_number}</Link> : <span className="mono">{s.invoice_number}</span>;
 
 function Summary({ a }: { a: PendingAction }) {
   const s = a.summary as Record<string, string> | null;
@@ -19,7 +23,7 @@ function Summary({ a }: { a: PendingAction }) {
   if (a.action === "send_dunning_email") {
     return (
       <dl className="facts">
-        <dt>Invoice</dt><dd className="mono">{s.invoice_number}</dd>
+        <dt>Invoice</dt><dd><InvoiceLink s={s} /></dd>
         <dt>To</dt><dd>{s.to_email}</dd>
         <dt>Subject</dt><dd>{s.subject}</dd>
         <dt>Amount</dt><dd>{money(s.amount, s.currency)}</dd>
@@ -31,7 +35,7 @@ function Summary({ a }: { a: PendingAction }) {
       <dl className="facts">
         <dt>Payment</dt><dd>{s.payer_name}, {money(s.amount, s.currency)}</dd>
         <dt>Memo</dt><dd className="memo">{s.remittance_memo}</dd>
-        <dt>Invoice</dt><dd><span className="mono">{s.invoice_number}</span> ({money(s.invoice_amount, s.currency)})</dd>
+        <dt>Invoice</dt><dd><InvoiceLink s={s} /> ({money(s.invoice_amount, s.currency)})</dd>
       </dl>
     );
   }

@@ -42,6 +42,8 @@ select results_eq(
   $$ values ('payment_match'::text, 'pending'::text, 'alice@brightwater.test'::text, 'a6e47000-0000-0000-0000-000000000001'::uuid,
              'ar-copilot-agent'::text, 'Harbor Hardware'::text, 'BWS-2026-9001'::text, true) $$,
   'inbox (alice): who requested it (user + agent) and what it does');
+select is((select summary ->> 'invoice_id' from public.list_pending_actions('pending')), '00000000-0000-0000-0000-00000000e001',
+  'inbox: a payment match summary names the invoice by id (the invoice page links to it)');
 select is((select count(*) from public.list_pending_actions('decided')), 0::bigint, 'nothing decided yet');
 reset role;
 
@@ -66,6 +68,20 @@ select results_eq(
   'decided view: executed by alice');
 select is((select count(*) from public.list_pending_actions('pending')), 0::bigint, 'pending view is empty after the decision');
 select is((select count(*) from public.list_pending_actions('bogus')), 0::bigint, 'unknown view returns nothing');
+reset role;
+
+-- ---- a dunning proposal names its invoice by id too
+select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001', 'a6e47000-0000-0000-0000-000000000001');
+select is(public.draft_dunning_email('BWS-2026-9001', 'friendly') #>> '{data,status}', 'draft', 'agent drafts');
+select is(public.send_dunning_email((select id from public.dunning_emails where status = 'draft' limit 1)) ->> 'reason',
+  'agent_not_permitted', 'agent send is denied (and proposed)');
+reset role;
+select pg_temp.act_as('a11ce000-0000-0000-0000-000000000001');
+select results_eq(
+  $$ select summary ->> 'invoice_id', summary ->> 'invoice_number' from public.list_pending_actions('pending')
+     where action = 'send_dunning_email' $$,
+  $$ values ('00000000-0000-0000-0000-00000000e001'::text, 'BWS-2026-9001'::text) $$,
+  'inbox: a dunning summary names the invoice by id and number');
 reset role;
 
 -- ---- agent access page: my own grants only, humans only

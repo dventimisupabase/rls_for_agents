@@ -58,13 +58,36 @@ export async function customerInvoices(id: string, page: number) {
   return { rows: must(r) as unknown as InvoiceRow[], count: r.count ?? 0 };
 }
 
+export type InvoiceDetail = InvoiceRow & {
+  notes: string | null;
+  payments: { id: string; received_at: string; amount: string; currency: string; payer_name: string; remittance_memo: string | null }[];
+  credit_notes: { id: string; issued_at: string; amount: string; currency: string; reason: string | null }[];
+  dunning_emails: {
+    id: string; to_email: string; subject: string; body: string; amount: string; status: string;
+    created_at: string; created_by_client: string | null; sent_at: string | null; sent_by_client: string | null;
+  }[];
+};
+// One request; each embedded list is whatever RLS lets this person read. null when the invoice doesn't exist
+// or isn't theirs to see.
+export async function invoice(id: string) {
+  return must(await sb.from("invoices").select(`${INVOICE_COLS}, notes,
+      payments(id, received_at, amount, currency, payer_name, remittance_memo),
+      credit_notes(id, issued_at, amount, currency, reason),
+      dunning_emails(id, to_email, subject, body, amount, status, created_at, created_by_client, sent_at, sent_by_client)`)
+    .eq("id", id)
+    .order("received_at", { referencedTable: "payments", ascending: false })
+    .order("issued_at", { referencedTable: "credit_notes", ascending: false })
+    .order("created_at", { referencedTable: "dunning_emails", ascending: false })
+    .maybeSingle()) as unknown as InvoiceDetail | null;
+}
+
 export type PaymentRow = {
   id: string; received_at: string; amount: string; currency: string; payer_name: string;
-  remittance_memo: string | null; invoices: { invoice_number: string } | null;
+  remittance_memo: string | null; invoices: { id: string; invoice_number: string } | null;
 };
 export async function payments(page: number, unmatchedOnly: boolean) {
   let q = sb.from("payments")
-    .select("id, received_at, amount, currency, payer_name, remittance_memo, invoices(invoice_number)", { count: "exact" })
+    .select("id, received_at, amount, currency, payer_name, remittance_memo, invoices(id, invoice_number)", { count: "exact" })
     .order("received_at", { ascending: false }).range(...range(page));
   if (unmatchedOnly) q = q.is("matched_invoice_id", null);
   const r = await q;
@@ -74,11 +97,11 @@ export async function payments(page: number, unmatchedOnly: boolean) {
 export type DunningRow = {
   id: string; to_email: string; subject: string; body: string; amount: string; status: string;
   created_at: string; created_by_client: string | null; sent_at: string | null; sent_by_client: string | null;
-  invoices: { invoice_number: string; currency: string } | null;
+  invoices: { id: string; invoice_number: string; currency: string } | null;
 };
 export async function dunning(status: "draft" | "sent", page: number) {
   const r = await sb.from("dunning_emails")
-    .select("id, to_email, subject, body, amount, status, created_at, created_by_client, sent_at, sent_by_client, invoices(invoice_number, currency)", { count: "exact" })
+    .select("id, to_email, subject, body, amount, status, created_at, created_by_client, sent_at, sent_by_client, invoices(id, invoice_number, currency)", { count: "exact" })
     .eq("status", status).order(status === "sent" ? "sent_at" : "created_at", { ascending: false }).range(...range(page));
   return { rows: must(r) as unknown as DunningRow[], count: r.count ?? 0 };
 }

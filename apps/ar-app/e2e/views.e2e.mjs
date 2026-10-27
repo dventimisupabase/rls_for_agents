@@ -74,7 +74,15 @@ try {
   assert.match(await a.textContent(".pager"), new RegExp(`of ${aliceOverdue}`));
   ok("alice: overdue invoices paged server-side", (await a.textContent(".pager")).trim());
 
-  await a.click("table tbody tr:first-child td a");
+  const firstNumber = (await a.textContent("table tbody tr:first-child td:first-child a")).trim();
+  await a.click("table tbody tr:first-child td:first-child a");
+  await a.waitForSelector("[data-testid=invoice-kpis]");
+  assert.equal((await a.textContent(".page-header h1")).trim(), `Invoice ${firstNumber}`);
+  for (const s of ["approvals", "payments", "credits", "dunning"]) await a.waitForSelector(`[data-testid=invoice-${s}]`);
+  ok("alice: invoice number opens the invoice page", firstNumber);
+  await a.goBack();
+
+  await a.click("table tbody tr:first-child td:nth-child(2) a");
   await a.waitForSelector("h2:has-text('Contacts')");
   ok("alice: customer detail with contacts and invoices", (await a.textContent(".page-header h1")).trim());
 
@@ -134,6 +142,9 @@ try {
   const card = a.locator(`[data-action-id='${lastProposal}']`);
   assert.match(await card.textContent(), /alice@brightwater\.example via ar-copilot-agent \(e2e\)/);
   ok("card shows who requested it: user + agent");
+  const inv4 = sql(`select i.id from invoices i join tenants t on t.id = i.tenant_id where t.kind = 'stage' and i.invoice_number = '${invs[4]}'`);
+  assert.equal(await card.locator(`a[href='/invoices/${inv4}']`).textContent(), invs[4]);
+  ok("card links its invoice to the invoice page");
 
   // Denied send auto-creates a proposal (beat 3)
   const draft = await agentRpc(agent, "draft_dunning_email", { invoice_number: invs[0], tone: "firm" });
@@ -169,6 +180,34 @@ try {
   await a.click("[role=tab]:has-text('Decided')");
   await a.waitForSelector("td:has-text('executed')");
   ok("decided view lists the outcome and who decided");
+
+  // ---- The invoice page: what happened to the invoice, including the approvals about it
+  const payer4 = sql(`select payer_name from payments where id = '${pays[4]}'`);
+  await a.goto(`http://localhost:3000/invoices/${inv4}`);
+  await a.waitForSelector(`[data-testid=invoice-approvals] [data-action-id='${lastProposal}']:has-text('executed')`);
+  await a.waitForSelector(`[data-testid=invoice-payments] td:has-text(${JSON.stringify(payer4)})`);
+  ok("invoice page: the approved match shows under approvals and payments", invs[4]);
+  const inv0 = sql(`select i.id from invoices i join tenants t on t.id = i.tenant_id where t.kind = 'stage' and i.invoice_number = '${invs[0]}'`);
+  await a.goto(`http://localhost:3000/invoices/${inv0}`);
+  await a.waitForSelector(`[data-testid=invoice-approvals] [data-action-id='${send.proposal_id}']:has-text('executed')`);
+  await a.waitForSelector(`[data-testid=invoice-dunning] tr:has-text('sent'):has-text('person')`);
+  ok("invoice page: the approved dunning send shows under approvals, and as sent by a person", invs[0]);
+
+  // A pending proposal shows live on the invoice page, with a way to review it
+  const live = await agentRpc(agent, "propose_payment_match", { payment_id: pays[1], invoice_number: invs[0] });
+  assert.equal(live.ok, true, JSON.stringify(live));
+  await a.waitForSelector(`[data-testid=invoice-approvals] [data-action-id='${live.data.proposal_id}']:has-text('pending') a[href='/approvals']`, { timeout: 5000 });
+  ok("invoice page: a new proposal about it appears live as pending");
+
+  // RLS, not the app, decides: Bob opens his own invoice, and gets "not found" for one outside his customers
+  const bob = sql(`select id from auth.users where email = 'bob@brightwater.example'`);
+  const [bobInv, otherInv] = ["=", "<>"].map((op) => sql(`select i.id from invoices i join customers c on c.id = i.customer_id
+    join tenants t on t.id = i.tenant_id where t.kind = 'stage' and c.owner_user_id ${op} '${bob}' order by i.invoice_number limit 1`));
+  await b.goto(`http://localhost:3000/invoices/${bobInv}`);
+  await b.waitForSelector("[data-testid=invoice-kpis]");
+  await b.goto(`http://localhost:3000/invoices/${otherInv}`);
+  await b.waitForSelector("[data-testid=invoice-not-found]");
+  ok("bob: opens his own invoice; another rep's invoice is not found");
 
   // Revocation (I6): the same token is now denied at the database
   sql(`update app.agent_grants set revoked_at = now() where user_id = '${alice}' and client_id = '${client.client_id}'`);

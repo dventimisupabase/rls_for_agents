@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { payments } from "../lib/data.ts";
 import { DateCell, ErrorBox, Money, PageHeader, Pager, Pill, useAsync } from "../lib/ui.tsx";
 
@@ -24,7 +25,7 @@ export function Payments() {
                 <td><DateCell value={p.received_at} /></td>
                 <td>{p.payer_name}</td>
                 <td className="memo">{p.remittance_memo}</td>
-                <td>{p.invoices ? <span className="mono">{p.invoices.invoice_number}</span> : <Pill tone="warn">unmatched</Pill>}</td>
+                <td>{p.invoices ? <Link className="mono" to={`/invoices/${p.invoices.id}`}>{p.invoices.invoice_number}</Link> : <Pill tone="warn">unmatched</Pill>}</td>
                 <td className="num"><Money amount={p.amount} currency={p.currency} /></td>
               </tr>
             ))}
