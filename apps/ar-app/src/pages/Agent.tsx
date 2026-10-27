@@ -1,5 +1,5 @@
 // Agent access: grant status, Connect agent (3LO through the AgentClient), Revoke agent access (stage beat 5).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { agent, getJwt, openConsent } from "../agent.ts";
 import { connectAgent, revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
@@ -29,14 +29,21 @@ export function AgentAccess() {
   const [note, setNote] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [revoked, setRevoked] = useState<{ name: string; database: Half; oauth: Half } | null>(null);
 
-  // Back from the 3LO flow: AgentCore needs a binding call here (CC-6); the dev agent doesn't.
+  // Back from the 3LO flow: AgentCore needs a binding call here (CC-6); the dev agent doesn't. Then confirm the
+  // connection the same way Connect does: a remembered consent skips the consent screen, so if no database grant
+  // backs it, connectAgent clears that consent and sends the user through the screen once more.
+  const returned = useRef(false);
   useEffect(() => {
     const err = params.get("agent_error");
-    if (params.get("connected") === "1") {
+    if (params.get("connected") === "1" && !returned.current) {
+      returned.current = true;
       (async () => {
         const jwt = await getJwt();
-        if (agent.completeConnect && jwt) await agent.completeConnect(params, jwt).catch((e) => setNote({ tone: "error", text: e.message }));
-        setNote((n) => n ?? { tone: "ok", text: "Agent connected." });
+        if (!jwt) return;
+        if (agent.completeConnect) await agent.completeConnect(params, jwt).catch((e) => setNote({ tone: "error", text: e.message }));
+        const r = await connectAgent(agent, sb.auth.oauth, jwt, myAccess);
+        if (r.kind === "consent") return openConsent(r.url);
+        setNote((n) => n ?? (r.kind === "connected" ? { tone: "ok", text: "Agent connected." } : { tone: "error", text: r.message }));
         grants.reload();
       })();
     } else if (err) setNote({ tone: "error", text: ERRORS[err] ?? err });
