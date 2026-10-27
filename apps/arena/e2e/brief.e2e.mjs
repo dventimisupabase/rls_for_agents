@@ -41,10 +41,10 @@ try {
   ok("Start playing stays on screen while the brief scrolls");
 
   await page.click("text=Start playing");
-  await page.waitForSelector("[data-testid=play]");
+  await page.waitForSelector(".copilot-input textarea");
   assert.equal(new URL(page.url()).pathname, "/play");
   ok("Start playing opens the play screen", `${Date.now() - t0} ms from opening the arena`);
-  await page.click("text=Read the brief");
+  await page.click(".tabs >> text=Brief");
   await page.waitForSelector("[data-testid=flags]");
   ok("the brief is one tap away from the play screen");
 } finally {

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation, useSearchParams } from "react-rou
 import { safeNext, signInPath } from "@ar/shared/auth/next.ts";
 import { agentReturnPath } from "./lib/routes.ts";
 import { Brief } from "./pages/Brief.tsx";
+import { Consent } from "./pages/Consent.tsx";
 import { Play } from "./pages/Play.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { useSession } from "./session.ts";
@@ -25,6 +26,8 @@ export function App() {
     <Routes>
       <Route path="/sign-in" element={session ? <SignedIn /> : <SignIn />} />
       <Route path="/agent" element={<AgentReturn />} />
+      {/* Handles its own sign-in redirect (keeping the authorization request in ?next=). */}
+      <Route path="/oauth/consent" element={<Consent />} />
       {session ? (
         <>
           <Route path="/" element={<Brief email={session.user.email ?? ""} />} />

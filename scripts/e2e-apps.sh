@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 SUPABASE="${SUPABASE:-npx --yes supabase@2.122.0}"
 eval "$($SUPABASE status -o env 2>/dev/null | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET|DB_URL|MAILPIT_URL)=')"
 export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" JWT_SECRET DB_URL MAILPIT_URL
-tests=("$@"); [ ${#tests[@]} -eq 0 ] && tests=(consent views copilot arena:signin arena:brief)
+tests=("$@"); [ ${#tests[@]} -eq 0 ] && tests=(consent views copilot arena:signin arena:brief arena:play)
 for t in "${tests[@]}"; do
   app=ar-app; name="$t"
   [[ "$t" == *:* ]] && { app="${t%%:*}"; name="${t#*:}"; }

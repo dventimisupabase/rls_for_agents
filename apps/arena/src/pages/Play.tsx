@@ -1,17 +1,88 @@
-// Placeholder until step 4 (the copilot panel and the player's own data).
-import { Link } from "react-router";
-import { PlayerSheet, PlayerTag } from "./Sheet.tsx";
+// The play screen: the shared copilot panel, and one tab away the player's own data.
+// Connecting is folded into the first message: if it asks for consent, the message is held across the consent
+// round trip (lib/pending.ts) and sent when the player comes back (/agent?connected=1 lands here).
+import { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router";
+import { CopilotPanel } from "@ar/shared/agent/CopilotPanel.tsx";
+import { agent, getJwt } from "../agent.ts";
+import { holdPrompt, takePrompt } from "../lib/pending.ts";
+import { usePlayer } from "../lib/usePlayer.ts";
+import { YourData } from "./YourData.tsx";
+
+const RETURN_ERRORS: Record<string, string> = {
+  access_denied: "You chose Deny, so the copilot is not connected. Send a message to try again.",
+  account_mismatch: "The consent came from a different account than this one. Nothing was connected.",
+  invalid_state: "That connection link expired or was already used. Send a message to try again.",
+  token_exchange_failed: "The connection could not be completed. Send a message to try again.",
+};
+
+const openConsent = (url: string, prompt?: string) => {
+  if (prompt) holdPrompt(sessionStorage, prompt);
+  window.location.assign(url);
+};
+
+// Back from consent: finish the connection (AgentCore needs a binding call here, CC-6; the dev agent doesn't)
+// and pick up the held message. undefined until that is settled, so the panel opens with the right state.
+function useReturn() {
+  const [params, setParams] = useSearchParams();
+  const [state, setState] = useState<{ resume: string | null; note: string | null } | undefined>(undefined);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    const connected = params.get("connected") === "1", err = params.get("agent_error");
+    if (params.has("connected") || params.has("agent_error")) {
+      const rest = new URLSearchParams(params);
+      rest.delete("connected"); rest.delete("agent_error");
+      setParams(rest, { replace: true });
+    }
+    if (err) { takePrompt(sessionStorage); return setState({ resume: null, note: RETURN_ERRORS[err] ?? err }); }
+    if (!connected) return setState({ resume: null, note: null });
+    (async () => {
+      let note: string | null = null;
+      const jwt = await getJwt();
+      if (jwt && agent.completeConnect) await agent.completeConnect(params, jwt).catch((e: Error) => { note = e.message; });
+      setState({ resume: note ? null : takePrompt(sessionStorage), note });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return state;
+}
 
 export function Play() {
+  const { player, error, retry } = usePlayer();
+  const back = useReturn();
+  const [tab, setTab] = useState<"copilot" | "data">("copilot");
+
   return (
-    <PlayerSheet>
-      {(player) => (
+    <main className="play">
+      <header className="play-head">
+        <p className="wordmark wordmark-sm">Kestrel Freight</p>
+        {player && <span className="mini-tag" data-testid="handle">{player.handle}</span>}
+      </header>
+      <nav className="tabs" role="tablist" aria-label="Play">
+        <button role="tab" aria-selected={tab === "copilot"} className={tab === "copilot" ? "on" : ""} onClick={() => setTab("copilot")}>Copilot</button>
+        <button role="tab" aria-selected={tab === "data"} className={tab === "data" ? "on" : ""} onClick={() => setTab("data")}>Your data</button>
+        <Link to="/" className="tab-link">Brief</Link>
+      </nav>
+      {error ? (
+        <div className="form-error play-msg" role="alert">
+          <p>Your company could not be set up: {error}</p>
+          <button className="primary" onClick={retry}>Try again</button>
+        </div>
+      ) : !player || back === undefined ? (
+        <p className="notice play-msg" role="status">Setting up your company.</p>
+      ) : (
         <>
-          <PlayerTag player={player} />
-          <p className="body" data-testid="play">The copilot arrives in the next build.</p>
-          <Link className="link" to="/">Read the brief</Link>
+          {back.note && <p className="form-error play-msg" role="alert">{back.note}</p>}
+          {/* Both stay mounted, so switching tabs keeps the conversation. */}
+          <div className="tab-body" hidden={tab !== "copilot"}>
+            <CopilotPanel agent={agent} getJwt={getJwt} onConsent={openConsent} resume={back.resume}
+              title="Your copilot" placeholder="Ask your copilot anything" />
+          </div>
+          <div className="tab-body" hidden={tab !== "data"}><YourData /></div>
         </>
       )}
-    </PlayerSheet>
+    </main>
   );
 }

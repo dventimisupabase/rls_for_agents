@@ -49,7 +49,7 @@ export function SignIn() {
             <input type="email" autoComplete="email" autoCapitalize="off" spellCheck={false} inputMode="email"
               value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
           </label>
-          <p className="consent" data-testid="consent">{CONSENT_TEXT}</p>
+          <p className="legal" data-testid="consent">{CONSENT_TEXT}</p>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="primary" disabled={busy}>Send code</button>
         </form>

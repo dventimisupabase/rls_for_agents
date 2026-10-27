@@ -72,7 +72,7 @@ form { display: flex; flex-direction: column; gap: 1rem; }
 
 /* Text still owed by humans (consent, prize, policy): set off with a stamp-red rule so it is never mistaken
    for the final word. A production build refuses while any of it ships (build/legal-guard.ts). */
-.consent, .owed { margin: 0; font-size: 0.88rem; border-left: 4px solid var(--stamp); padding: 0.2rem 0 0.2rem 0.7rem; }
+.legal, .owed { margin: 0; font-size: 0.88rem; border-left: 4px solid var(--stamp); padding: 0.2rem 0 0.2rem 0.7rem; }
 
 button { font: inherit; cursor: pointer; }
 button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
@@ -173,3 +173,99 @@ a.primary { display: flex; align-items: center; justify-content: center; text-de
 .dock .primary { width: 100%; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---- play screen: a phone-height column; the copilot log scrolls, the input stays at the bottom ---- */
+.play {
+  max-width: 34rem;
+  margin: 0 auto;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sheet);
+  border-inline: var(--rule);
+}
+.play-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+  padding: max(0.6rem, env(safe-area-inset-top)) 0.9rem 0.5rem;
+  border-bottom: 3px double var(--ink);
+}
+.wordmark-sm { font-size: 1.55rem; }
+.mini-tag {
+  background: var(--tag);
+  padding: 0.15rem 0.6rem 0.15rem 0.9rem;
+  clip-path: polygon(0.5rem 0, 100% 0, 100% 100%, 0.5rem 100%, 0 50%);
+  font-family: var(--stencil); font-weight: 800; font-size: 1.15rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;
+}
+.tabs { display: flex; border-bottom: var(--rule); }
+.tabs button, .tab-link {
+  flex: 1; min-height: 2.9rem;
+  background: none; border: 0; border-right: var(--rule);
+  color: var(--ink); font-weight: 650; text-align: center;
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.tab-link { flex: 0 0 5rem; border-right: 0; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.tabs .on { background: var(--ink); color: var(--sheet); }
+.tab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tab-body[hidden] { display: none; }
+.play-msg { padding: 0.7rem 0.9rem; }
+
+/* The shared copilot panel, in the arena's dress. */
+.copilot { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.copilot-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0.45rem 0.9rem; }
+.copilot-head h2 { margin: 0; font-size: 0.95rem; font-weight: 700; font-stretch: 85%; }
+.copilot-log { flex: 1; overflow-y: auto; padding: 0.4rem 0.9rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.copilot-empty { margin: 0; font-size: 0.95rem; }
+.msg { max-width: 90%; padding: 0.5rem 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-user { align-self: flex-end; background: var(--ink); color: var(--sheet); }
+.msg-assistant { align-self: flex-start; background: rgb(255 255 255 / 0.55); border: var(--rule); }
+.msg-thinking { font-style: italic; }
+.copilot .notice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 0.6rem 0.75rem; border: var(--rule); border-style: dashed; }
+.copilot .notice-error { border-color: var(--stamp); color: var(--stamp); border-style: solid; }
+.copilot .notice .primary { padding: 0 1.2rem; min-height: 2.8rem; }
+.copilot-input { display: flex; gap: 0.5rem; padding: 0.6rem 0.9rem max(0.6rem, env(safe-area-inset-bottom)); border-top: var(--rule); }
+.copilot-input textarea {
+  flex: 1; min-height: 2.9rem; resize: none;
+  border: var(--rule); background: rgb(255 255 255 / 0.5); color: var(--ink);
+  font: inherit; font-size: 1rem; padding: 0.45rem 0.6rem;
+}
+.copilot-input textarea:focus { outline: 3px solid var(--tag); outline-offset: 1px; }
+.copilot-input .primary { padding: 0 1rem; }
+
+/* Tool calls as manifest line items; the outcome is the database's, stamped on the right. */
+.chip { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.6rem; border: var(--rule); border-left-width: 6px; padding: 0.4rem 0.6rem; background: rgb(255 255 255 / 0.4); }
+.chip-name { font-weight: 700; overflow-wrap: anywhere; }
+.chip-args { grid-column: 1; font-size: 0.85rem; overflow-wrap: anywhere; }
+.chip-badges { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+.chip-rows { grid-column: 1 / -1; font-weight: 700; }
+.chip-reason { grid-column: 1 / -1; font-size: 0.85rem; color: var(--stamp); }
+.chip-ok { border-left-color: var(--ink); }
+.chip-denied { border-left-color: var(--stamp); }
+.chip-proposal { border-left-color: var(--tag); }
+.badge { display: inline-flex; align-items: center; gap: 0.3em; font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
+.badge-denied { background: var(--stamp); color: #fff; padding: 0.15em 0.5em; transform: rotate(-3deg); }
+.badge-proposal { border: 2px dashed var(--ink); padding: 0.1em 0.45em; }
+
+/* Your data */
+.your-data { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.segments { display: flex; gap: 0.4rem; padding: 0.6rem 0.9rem; }
+.segments button { flex: 1; border: var(--rule); background: none; color: var(--ink); padding: 0.35rem 0.4rem; min-height: 2.6rem; }
+.segments .on { background: var(--ink); color: var(--sheet); }
+.data-body { flex: 1; overflow-y: auto; padding: 0 0.9rem 1rem; }
+.count { margin: 0 0 0.4rem; font-size: 0.85rem; font-weight: 600; }
+.ledger { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.ledger li { display: grid; grid-template-columns: 1fr auto; gap: 0.1rem 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid var(--ink); }
+.ledger-no { font-weight: 650; overflow-wrap: anywhere; }
+.ledger-amt { font-variant-numeric: tabular-nums; font-weight: 650; }
+.ledger-sub, .ledger-memo { grid-column: 1 / -1; font-size: 0.88rem; }
+.ledger-memo { font-style: italic; overflow-wrap: anywhere; }
+
+/* Consent screen (shared component) on the arena sheet */
+.consent-sheet { gap: 0.8rem; }
+.consent-sheet h1 { font-size: 1.4rem; line-height: 1.2; margin: 0 0 0.6rem; }
+.consent-client { font-family: var(--stencil); font-weight: 800; }
+.consent-scopes { padding-left: 1.1rem; }
+.consent-actions { display: flex; gap: 0.6rem; margin-top: 0.8rem; }
+.consent-actions button { flex: 1; min-height: 3.2rem; font-weight: 700; font-size: 1.05rem; }
+.secondary { border: var(--rule); background: none; color: var(--ink); }
+.consent-error { color: var(--stamp); font-weight: 600; }

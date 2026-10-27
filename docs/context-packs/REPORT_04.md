@@ -59,8 +59,8 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
    `/callback` returns to that app's `/agent`; an unlisted or missing origin falls back to the first app, so the
    callback is never an open redirect (Deno tests). Redirect URLs allow both origins. Site URL stays :3000:
    consent lands on Site URL + `/oauth/consent` and sessions are per origin, so connecting an agent from the
-   arena needs the stack started with `SUPABASE_AUTH_SITE_URL=http://localhost:3001` (not yet tried; first
-   needed in step 4, when the arena also needs its own consent and sign-in routes). `scripts/e2e-apps.sh` stays
+   arena needs the stack started with `SUPABASE_AUTH_SITE_URL=http://localhost:3001` (verified in step 4:
+   the auth container gets `GOTRUE_SITE_URL` from it). `scripts/e2e-apps.sh` stays
    AR-only until the arena has an e2e. Unchanged behavior: app tests (Deno 9, AR 22, arena 1, shared 60 with the
    integration tests) and the AR e2e suites (consent, views, copilot) all pass.
 2. Sign-in with an email code, the legal consent text as a marked placeholder (a production build refuses to
@@ -111,6 +111,30 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
      `evidence/A_brief_top_390.png`, `evidence/A_brief_flags_390.png`.
 4. Play screen: the shared copilot panel, and one tab away a simplified view of the player's own invoices,
    payments and customers. Connecting the agent is folded into the first message.
+   **Done (2026-10-27).** `/play` has three tabs: Copilot (the shared `CopilotPanel`), Your data (the player's
+   overdue invoices, payments with their remittance memos, and customers; first page and a total, read through
+   RLS with `dataApi`) and a link back to the brief. Both panels stay mounted, so switching keeps the
+   conversation.
+   - Connect folded into the first message: the panel now tells the app which message asked for consent
+     (`onConsent(url, prompt)`) and takes a message to send on open (`resume`). The arena holds the message in
+     `sessionStorage` (single use, 15 minutes; `lib/pending.ts`), the player taps Connect agent, consents on
+     the arena's own `/oauth/consent`, the dev agent returns to `/agent?connected=1`, and `/play` sends the
+     held message once. Deny or a failed return drops it and says why. The resend is deferred a tick so
+     StrictMode's throwaway mount (which aborts its requests) doesn't swallow it. The AR app ignores both new
+     props.
+   - The shared consent page takes `revokeHint` (default: the AR app's "Agent access page" sentence); the arena
+     passes none, since it has no revoke page. Whether players need one is open.
+   - Local Site URL: the switch works (`SUPABASE_AUTH_SITE_URL=http://localhost:3001 supabase start`). Only one
+     app's consent works at a time locally; in production each app has its own project and Site URL.
+   - Evidence: `apps/arena/e2e/play.e2e.mjs` at an iPhone 14 viewport with the scripted dev agent, 7 steps pass
+     (`evidence/A_play_e2e_local.txt`): the first message asks to connect; consent is on the arena, for the
+     signed-in player, with no pointer to a missing page; after Allow the held message is sent exactly once
+     and `list_overdue_invoices` returns the player's own rows (matches a direct count); first answer about
+     0.8 s after opening the arena with scripted typing (P4's 60 s budget is the human part); a
+     `KST-2026-0001` lookup returns `not_found`; Your data matches direct counts of overdue invoices and
+     payments; a reload sends nothing; Deny lands back on `/play` with an explanation and nothing sent.
+     Screenshots: `evidence/A_consent_390.png`, `evidence/A_play_first_answer_390.png`,
+     `evidence/A_your_data_390.png`. Not yet run against the bedrock model or a real phone.
 5. "Your attempts" from `my_agent_activity`; optionally room totals from the counts-only scoreboard views
    through a new read function.
 6. Friendly copy for `paused` and `limit_reached` (already in CC-8). A pre-turn kill-switch status read would

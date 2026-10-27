@@ -158,8 +158,8 @@ enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
 # Locally the AR app (:3000). OAuth consent goes to Site URL + /oauth/consent, and a browser session is per
-# origin, so connecting an agent from the arena (:3001) needs Site URL at :3001. Intended toggle, untested:
-# start the stack with SUPABASE_AUTH_SITE_URL=http://localhost:3001 (REPORT_04, "Arena: decisions and plan").
+# origin, so connecting an agent from the arena (:3001) needs Site URL at :3001: start the stack with
+# SUPABASE_AUTH_SITE_URL=http://localhost:3001 (one app's consent works at a time; REPORT_04, "Arena").
 site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
