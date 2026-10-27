@@ -158,13 +158,15 @@ enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
 # Locally the AR app (:3000). OAuth consent goes to Site URL + /oauth/consent, and a browser session is per
-# origin, so connecting an agent from the arena (:3001) needs Site URL at :3001: start the stack with
-# SUPABASE_AUTH_SITE_URL=http://localhost:3001 (one app's consent works at a time; REPORT_04, "Arena").
+# origin, so connecting an agent from the arena (:3001) needs Site URL at :3001: scripts/start-stack.sh
+# --arena-consent (one app's consent works at a time; REPORT_04, "Arena"). The arena's other local auth settings
+# (code-only emails, redirect URLs, resend interval) come from scripts/start-stack.sh --arena, so this file keeps
+# the hosted values and is safe to push to stage.
 site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:3000/**", "http://localhost:3001/**"]
+additional_redirect_urls = []
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -231,9 +233,7 @@ enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
-# Locally 5s, so a returning player can ask for a new code without waiting a minute (and the arena e2e can
-# sign the same player in twice). A hosted project keeps its own value; the arena shows the server's message.
-max_frequency = "5s"
+max_frequency = "1m0s"
 # Number of characters used in the email OTP.
 otp_length = 8
 # Number of seconds before the email OTP expires (defaults to 1 hour).
@@ -249,15 +249,13 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# The arena signs players in with a typed code (REPORT_04, "Arena: decisions and plan"): a new email gets the
-# confirmation template, a returning one the magic link template. Both show only the code.
+# Declared with the hosted subjects (and no content_path, so hosted bodies are untouched) so that
+# scripts/start-stack.sh --arena can override them locally with the arena's code-only templates.
 [auth.email.template.confirmation]
-subject = "Your Kestrel Freight arena code"
-content_path = "./supabase/templates/confirmation.html"
+subject = "Confirm your email address"
 
 [auth.email.template.magic_link]
-subject = "Your Kestrel Freight arena code"
-content_path = "./supabase/templates/magic_link.html"
+subject = "Your sign-in link"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

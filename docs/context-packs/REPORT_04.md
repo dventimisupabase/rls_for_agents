@@ -59,7 +59,7 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
    `/callback` returns to that app's `/agent`; an unlisted or missing origin falls back to the first app, so the
    callback is never an open redirect (Deno tests). Redirect URLs allow both origins. Site URL stays :3000:
    consent lands on Site URL + `/oauth/consent` and sessions are per origin, so connecting an agent from the
-   arena needs the stack started with `SUPABASE_AUTH_SITE_URL=http://localhost:3001` (verified in step 4:
+   arena needs the stack started with Site URL :3001, now `scripts/start-stack.sh --arena-consent` (verified in step 4:
    the auth container gets `GOTRUE_SITE_URL` from it). `scripts/e2e-apps.sh` stays
    AR-only until the arena has an e2e. Unchanged behavior: app tests (Deno 9, AR 22, arena 1, shared 60 with the
    integration tests) and the AR e2e suites (consent, views, copilot) all pass.
@@ -73,8 +73,13 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
    - Email: the local default sign-up email had only a link, so `supabase/templates/{confirmation,magic_link}.html`
      carry only `{{ .Token }}` (a new email gets the first, a returning one the second; `verifyOtp` with type
      `email` accepts both, checked against the auth server). A hosted project needs the same two templates.
-     Local `max_frequency` is now 5 s per address (was 1 min) so a returning player is not made to wait; the
-     arena shows the auth server's message when it refuses.
+     Locally the resend interval is 5 s per address (hosted: 1 min) so a returning player is not made to wait;
+     the arena shows the auth server's message when it refuses. These local settings (templates, resend interval,
+     redirect URLs) were first put in `config.toml`, which broke REPORT_02 judgment call 18 (base config safe to
+     push to stage): a `config diff` against stage found all four. They now come from `scripts/start-stack.sh
+     --arena` as environment overrides (verified in the auth container), and `config.toml` again diffs clean
+     against stage except the one remote-only setting. The template overrides need the template blocks
+     declared, so `config.toml` declares both with stage's own subjects and no `content_path`.
    - Legal guard: the consent text lives in `apps/arena/src/legal.ts` and starts with `[LEGAL PLACEHOLDER]`.
      `build/legal-guard.ts` scans the emitted bundle (not the source, so the visible marker survives
      minification) and fails a `production` build that still contains it. `npm run build:stage -w @ar/arena`
@@ -124,7 +129,7 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
      props.
    - The shared consent page takes `revokeHint` (default: the AR app's "Agent access page" sentence); the arena
      passes none, since it has no revoke page. Whether players need one is open.
-   - Local Site URL: the switch works (`SUPABASE_AUTH_SITE_URL=http://localhost:3001 supabase start`). Only one
+   - Local Site URL: the switch works (`scripts/start-stack.sh --arena-consent`). Only one
      app's consent works at a time locally; in production each app has its own project and Site URL.
    - Evidence: `apps/arena/e2e/play.e2e.mjs` at an iPhone 14 viewport with the scripted dev agent, 7 steps pass
      (`evidence/A_play_e2e_local.txt`): the first message asks to connect; consent is on the arena, for the

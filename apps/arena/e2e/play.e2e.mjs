@@ -1,6 +1,6 @@
 // The play screen at a phone viewport, with the scripted dev agent (deterministic tool calls; the outcome
-// shown is the database's). Needs the local stack started with SUPABASE_AUTH_SITE_URL=http://localhost:3001 so
-// consent lands on the arena, and the dev agent in scripted mode allowing http://localhost:3001.
+// shown is the database's). Needs the local stack started with scripts/start-stack.sh --arena-consent (Site URL
+// :3001, so consent lands on the arena) and the dev agent in scripted mode allowing http://localhost:3001.
 // Run: scripts/e2e-apps.sh arena:play
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
