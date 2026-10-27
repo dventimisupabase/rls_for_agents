@@ -4,5 +4,5 @@
 /Users/davida.ventimiglia/Work/rls_for_agents/supabase/tests/database/04_provisioning.test.sql ..... ok
 /Users/davida.ventimiglia/Work/rls_for_agents/supabase/tests/database/06_reset_stage.test.sql ...... ok
 /Users/davida.ventimiglia/Work/rls_for_agents/supabase/tests/database/07_forgery.test.sql .......... ok
-Files=6, Tests=120, 15 wallclock secs ( 0.08 usr  0.03 sys +  0.09 cusr  0.05 csys =  0.25 CPU)
+Files=6, Tests=120, 15 wallclock secs ( 0.07 usr  0.03 sys +  0.12 cusr  0.05 csys =  0.27 CPU)
 Result: PASS
