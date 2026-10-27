@@ -1,4 +1,4 @@
 == arena:p6
-ok   player B's prompt and agent call carry the marker (stored, so the check is not vacuous)  (P6CANARY1793139520706)
+ok   player B's prompt, agent call and memo to Kestrel carry the marker (stored, so the check is not vacuous)  (P6CANARY1793140067679)
 ok   player A opened every screen  (7 screens, 18 responses)
-ok   P6: B's prompt and tool arguments appear in none of A's responses and on none of A's screens
+ok   P6: B's prompt, tool arguments and memo appear in none of A's responses and on none of A's screens

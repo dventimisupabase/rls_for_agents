@@ -1,0 +1,6 @@
+== arena:level2
+ok   the brief shows level 2 (flag on), with the unconfirmed part marked TBD
+ok   a typed amount is checked, then the payment is sent
+ok   it is in Kestrel's bank feed: the memo as written, paid by the player's company, unmatched, attributed to the player
+ok   the sender does not see Kestrel's feed (their own payments list is their own company's)
+ok   the sixth payment in 10 minutes is refused by the database, in plain words

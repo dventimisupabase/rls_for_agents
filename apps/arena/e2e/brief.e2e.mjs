@@ -21,7 +21,7 @@ try {
   ok("four flags, and the Kestrel invoice number hint");
 
   const owed = await page.$$eval(".owed", (ps) => ps.map((p) => p.textContent));
-  assert.equal(owed.length, 2);
+  assert.equal(owed.length, (await page.locator("[data-testid=level2]").count()) ? 3 : 2);  // level 2 adds one when shown
   assert.ok(owed.every((t) => t.startsWith("[TBD]")), owed.join(" | "));
   assert.match(await page.textContent("body"), /What counts as a capture/);
   ok("prize and real-hole policy are visibly marked TBD");

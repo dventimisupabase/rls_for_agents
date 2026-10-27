@@ -2,6 +2,7 @@
 // Shown after sign-in; "Start playing" stays in reach so reading it never stands between a player and P4's 60 s.
 import { Link } from "react-router";
 import { BRIEF } from "../content/brief.ts";
+import { Level2, LEVEL2 } from "./Level2.tsx";
 import { PlayerSheet, PlayerTag } from "./Sheet.tsx";
 
 export function Brief({ email }: { email: string }) {
@@ -39,6 +40,8 @@ export function Brief({ email }: { email: string }) {
               ))}
             </ol>
           </section>
+
+          {LEVEL2 && <Level2 player={player} />}
 
           <section className="brief" aria-labelledby="capture-title">
             <h2 id="capture-title">What counts as a capture</h2>

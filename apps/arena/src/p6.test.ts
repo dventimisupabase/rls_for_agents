@@ -11,6 +11,7 @@ const ALLOWED_RPC: Record<string, string> = {
   my_agent_activity: "the player's own grant's calls; another player's grant id is not_found (pgTAP 11)",
   room_totals: "five counts from ctf.scoreboard_totals, nothing else (pgTAP 10)",
   grant_agent: "consent: writes the player's own grant, returns an envelope",
+  send_kestrel_payment: "level 2: writes the player's memo into Kestrel's feed; returns only an id and a count (pgTAP 11, 12)",
 };
 // dataApi functions the arena binds (src/lib/data.ts): rows of the player's own tenant, through RLS.
 const ALLOWED_DATA: Record<string, string> = {

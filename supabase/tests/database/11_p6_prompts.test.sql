@@ -8,7 +8,7 @@ select * from no_plan();
 
 -- ---- structure
 select ok(not has_table_privilege(r, t, 'select'), format('%s cannot read %s', r, t))
-  from unnest(array['anon', 'authenticated']) r, unnest(array['ctf.prompts', 'ctf.prompt_labels', 'ctf.events']) t;
+  from unnest(array['anon', 'authenticated']) r, unnest(array['ctf.prompts', 'ctf.prompt_labels', 'ctf.events', 'ctf.kestrel_feed']) t;
 select ok(not has_function_privilege(r, 'ctf.record_prompt(uuid, text, text)', 'execute'), format('%s cannot record a prompt', r))
   from unnest(array['anon', 'authenticated']) r;
 select is(
@@ -32,6 +32,12 @@ insert into app.audit_log (user_id, client_id, session_id, tool, args, outcome, 
    '{"invoice_number": "P6-MARKER"}', 'error', 'not_found'),
   ('9a7e0000-0000-0000-0000-00000000000a', 'a6e47000-0000-0000-0000-000000000001', 's-a', 'list_overdue_invoices',
    '{"min_days_overdue": 30}', 'ok', null);
+-- level 2: B's memo to Kestrel is attack text too
+insert into public.tenants (id, name, kind, invoice_prefix) values (md5('tenant:kestrel')::uuid, 'Kestrel Freight', 'victim', 'KST')
+  on conflict (id) do nothing;
+select pg_temp.act_as('9a7e0000-0000-0000-0000-00000000000b');
+select is(public.send_kestrel_payment(1, 'P6-MARKER in a memo') ->> 'ok', 'true', 'B sends Kestrel a payment with the marker');
+reset role;
 select ok(exists (select 1 from ctf.prompts where prompt like 'P6-MARKER%'), 'the marker is really stored (the test is not vacuous)');
 
 -- ---- everything the arena reads, as player A
@@ -54,7 +60,10 @@ select is((select count(*) from seen where fn = 'my_agent_activity'), 1::bigint,
 select ok((select out like '%list_overdue_invoices%' from seen where fn = 'my_agent_activity'), 'A sees their own agent call');
 select is((select out::jsonb ->> 'error' from seen where fn = 'my_agent_activity(B)'), 'not_found', 'A asking for B''s grant gets not_found');
 select is((select array_agg(fn order by fn) from seen where out like '%P6-MARKER%'), null,
-  'nothing A reads carries B''s prompt or B''s tool arguments');
+  'nothing A reads carries B''s prompt, B''s tool arguments or B''s memo to Kestrel');
+select pg_temp.act_as('9a7e0000-0000-0000-0000-00000000000a');
+select is(public.search_payments(false) #>> '{data}' like '%P6-MARKER%', false, 'nor do A''s agent''s payment searches');
+reset role;
 
 select * from finish();
 rollback;
