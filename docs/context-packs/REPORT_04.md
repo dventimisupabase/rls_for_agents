@@ -227,14 +227,13 @@ succeeds is decided by Postgres and the auth server. Stage mode is presentation 
    assertions (deleted client, unregistered client); the fixture now registers its agent client. The 6
    stale stage grants were revoked with one targeted UPDATE, and a stage reset afterwards left 0 active.
 
-4. **The model miscounts long lists (beat 1 risk).** Twice in a row Claude said "20 invoices" when
+4. **The model miscounted long lists (beat 1 risk; fixed).** Twice in a row Claude said "20 invoices" when
    `list_overdue_invoices` returned 21 rows, and "30 unmatched payments" when `search_payments` returned 31.
-   The database answer and the chip ("21 rows") are right; the spoken number is off by one. Beat 1 has the
-   audience compare Alice's and Bob's numbers, so this matters on stage. Options (decision for the humans,
-   not changed yet): (a) the agent loop adds a plain "N rows" text block next to each list result (agent
-   side only; pack 03 would mirror it in the runtime); (b) list tools return a count in `data` (changes
-   tool output shapes; pack 02 and pack 03); (c) a system prompt rule to quote counts from the tool. (a) is
-   the smallest; (c) alone is unlikely to be reliable.
+   Decided (David, 2026-10-27): option (a), the agent loop sends a plain "N rows returned." text block next to
+   each list result, leaving the envelope unchanged (`scripts/lib/agent_loop.ts` `resultContent`, unit test).
+   After the change Claude said 21 and 4, matching the database, in three runs out of three; the Bedrock smoke
+   now asserts it. The eval harness shares the loop, so later eval runs include the count too. Proposed for
+   the AgentCore runtime in CC-8.
 
 ## Not yet verified or built
 

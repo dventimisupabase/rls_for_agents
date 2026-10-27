@@ -59,3 +59,18 @@ Deno.test("stops after maxTurns even if the model keeps calling tools", async ()
     messages: [{ role: "user", content: [{ text: "x" }] }], callTool: async () => ({ ok: true }) });
   assertEquals(r.toolCalls, 3);
 });
+
+// Models miscount long lists (21 rows reported as 20 on Sonnet 5.5): each list result goes back with a
+// plain row count next to the unchanged envelope.
+Deno.test("list results carry an explicit row count; other results do not", async () => {
+  const { model, seen } = fakeModel([
+    [{ toolUse: { toolUseId: "a", name: "get_invoice", input: {} } }, { toolUse: { toolUseId: "b", name: "get_invoice", input: {} } }],
+    [{ text: "ok" }],
+  ]);
+  const envs = [{ ok: true, data: [{}, {}, {}] }, { ok: true, data: { id: "x" } }];
+  await runAgentLoop({ model, system: "s", toolConfig: toolConfigFrom(TOOLS), messages: [{ role: "user", content: [{ text: "x" }] }],
+    callTool: async () => envs.shift()! });
+  const results = (seen[1].at(-1) as { content: { toolResult: { content: unknown[] } }[] }).content.map((c) => c.toolResult.content);
+  assertEquals(results[0], [{ text: "3 rows returned." }, { json: { ok: true, data: [{}, {}, {}] } }]);
+  assertEquals(results[1], [{ json: { ok: true, data: { id: "x" } } }]);
+});

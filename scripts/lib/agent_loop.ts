@@ -39,6 +39,15 @@ export function bedrockModel(opts: { region: string; profile?: string; modelId: 
   };
 }
 
+// Models miscount long lists (Sonnet 5.5 reported 21 rows as 20, twice). A list result goes back with a plain
+// row count next to the unchanged envelope, so the model can quote the number instead of counting.
+export function resultContent(env: Envelope): unknown[] {
+  const d = env.data;
+  return env.ok === true && Array.isArray(d)
+    ? [{ text: `${d.length} ${d.length === 1 ? "row" : "rows"} returned.` }, { json: env }]
+    : [{ json: env }];
+}
+
 export async function runAgentLoop(o: {
   model: Model;
   system: string;
@@ -71,7 +80,7 @@ export async function runAgentLoop(o: {
       called.push(u.name);
       results.push(env);
       await o.onEvent?.({ type: "tool_result", id: u.toolUseId, name: u.name, envelope: env });
-      out.push({ toolResult: { toolUseId: u.toolUseId, content: [{ json: env }] } });
+      out.push({ toolResult: { toolUseId: u.toolUseId, content: resultContent(env) } });
     }
     messages.push({ role: "user", content: out });
   }

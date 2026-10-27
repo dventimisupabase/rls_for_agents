@@ -71,7 +71,8 @@ try {
   const a1 = await alice.ask(q1); show("beat 1, Alice", a1);
   const b1 = await bob.ask(q1); show("beat 1, Bob", b1);
   for (const [who, r] of [["Alice", a1], ["Bob", b1]]) {
-    log(`${stated(r) === returned(r) ? "ok  " : "NOTE"} beat 1 ${who}: database returned ${returned(r)} rows, model said ${stated(r)}`);
+    log(`${stated(r) === returned(r) ? "ok  " : "FAIL"} beat 1 ${who}: database returned ${returned(r)} rows, model said ${stated(r)}`);
+    assert.equal(stated(r), returned(r), "the spoken count must match the rows returned (the loop adds 'N rows returned.')");
   }
   assert.ok(returned(a1) > returned(b1), "Alice must see more than Bob");
 

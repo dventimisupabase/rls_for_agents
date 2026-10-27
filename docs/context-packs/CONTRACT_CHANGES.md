@@ -132,3 +132,6 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
   "Revoke agent access" until it expires. The dev agent forces a refresh (refused once the app has revoked the
   OAuth consent) and, on failure, drops the token and returns `consent_required`. It does not call the database
   directly for this check, so the agent path stays MCP-only and audited.
+- When a tool result's `data` is a list, the runtime gives the model a plain `"N rows returned."` text block next to
+  the unchanged envelope. Without it, Claude Sonnet 5.5 reported 21 rows as 20 (twice), which breaks stage beat 1
+  (Alice and Bob compare counts). With it, three runs out of three matched the database.
