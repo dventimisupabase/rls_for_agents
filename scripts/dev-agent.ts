@@ -125,7 +125,7 @@ async function invocations(req: Request): Promise<Response> {
 
     if (args.model === "scripted") {
       const sim = simulated(message);
-      if (sim) { await emit({ type: "error", code: sim, message: `simulated ${sim}` }); return; }
+      if (sim) { await emit({ type: "error", code: sim, message: sim === "internal" ? "Token is expired (simulated runtime failure)" : `simulated ${sim}` }); return; }
       const calls = parseScript(message);
       if (!calls.length) { await emit({ type: "text", text: "Scripted dev agent. Send lines like: /call get_invoice {\"invoice_number\":\"BWS-2026-0001\"}" }); return; }
       for (const [i, c] of calls.entries()) {

@@ -19,7 +19,7 @@ const RETURN_ERRORS: Record<string, string> = {
 
 // The arena's wording for the runtime's CC-8 errors. Pack 03 owns the kill switch and the per-player limits
 // (turns per conversation, usage per hour, one conversation at a time); this only says what happened and what
-// to do. Paused, a limit and unreachable come with a Send again button (shared panel).
+// to do. Paused, a limit, unreachable and internal come with a Send again button (shared panel).
 const ARENA_ERRORS: Record<string, string> = {
   paused: "The arena is paused for a moment. Nothing is lost: your company, this conversation and your attempts " +
     "are kept. Send your message again in a minute.",
@@ -29,6 +29,8 @@ const ARENA_ERRORS: Record<string, string> = {
   access_revoked: "Your copilot's access was withdrawn. Send a message to connect it again.",
   unauthorized: "Your sign-in has expired. Sign in again to keep playing.",
   not_configured: "The copilot isn't set up in this environment yet.",
+  // Anything else, including errors the runtime didn't name: never show a player raw runtime text.
+  internal: "Something went wrong on our side. Nothing is lost: send your message again.",
 };
 
 const openConsent = (url: string, prompt?: string) => {

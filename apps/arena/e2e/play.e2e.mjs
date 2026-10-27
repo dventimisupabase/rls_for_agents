@@ -158,6 +158,15 @@ try {
   assert.equal(await (await lastChip(page, 4)).getAttribute("data-badges"), "ok");
   ok("limit reached: says which limits exist and what to do; the next turn works once it passes");
 
+  // A turn that fails inside the runtime: the player sees plain words, never the runtime's own text.
+  await type(page, "/simulate internal");
+  await page.waitForSelector('.copilot .notice-error[data-code="internal"]');
+  const failed = page.locator('.copilot .notice-error[data-code="internal"]').last();
+  assert.match(await failed.textContent(), /Something went wrong on our side/);
+  assert.ok(!/Token is expired/.test(await page.textContent(".copilot")), "no raw runtime text");
+  assert.equal(await failed.locator("text=Send again").count(), 1);
+  ok("a failed turn: plain words, no raw runtime text, and Send again");
+
   // A reload starts a new conversation and does not send the held message again.
   await page.reload();
   await page.waitForSelector(".copilot-input textarea");

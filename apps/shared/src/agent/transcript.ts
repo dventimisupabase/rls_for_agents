@@ -21,9 +21,17 @@ export function badgesFor(_tool: string, env: Envelope): Badge[] {
   return ["error"];
 }
 
-// Errors that pass on their own: the kill switch (paused), a per-player limit, a network blip. The panel offers to
-// send the same message again; everything else needs the person to do something first.
-const RETRYABLE = new Set(["paused", "limit_reached", "unreachable"]);
+// Errors that pass on their own: the kill switch (paused), a per-player limit, a network blip, a failed turn
+// (internal). The panel offers to send the same message again; everything else needs the person to act first.
+const RETRYABLE = new Set(["paused", "limit_reached", "unreachable", "internal"]);
+
+// The words shown for an error event: the app's own wording, else the default for the code. A code with neither
+// gets the app's "internal" wording when it has one (the arena: players never see raw runtime text), else the raw
+// message (the AR app, where a presenter wants the detail).
+export function errorMessage(code: string, raw: string, defaults: Record<string, string>,
+  app: Partial<Record<string, string>> | undefined): string {
+  return app?.[code] ?? defaults[code] ?? app?.internal ?? raw;
+}
 
 export function reduce(t: Transcript, e: PanelEvent): Transcript {
   switch (e.type) {

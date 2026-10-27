@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgesFor, reduce, type Transcript } from "./transcript.ts";
+import { badgesFor, errorMessage, reduce, type Transcript } from "./transcript.ts";
 
 describe("badgesFor (from the section 4.4 envelope only)", () => {
   it("ok", () => expect(badgesFor("get_invoice", { ok: true, data: {} })).toEqual(["ok"]));
@@ -43,10 +43,25 @@ describe("reduce", () => {
     expect(reduce([], { type: "consent_required", url: "https://x" })[0]).toMatchObject({ kind: "notice", tone: "consent", url: "https://x" });
     expect(reduce([], { type: "error", code: "access_revoked", message: "m" })[0]).toMatchObject({ kind: "notice", tone: "error", code: "access_revoked" });
   });
-  it("errors that pass on their own (paused, a limit, unreachable) offer to send the message again", () => {
-    for (const code of ["paused", "limit_reached", "unreachable"])
+  it("errors that pass on their own (paused, a limit, unreachable, a failed turn) offer to send the message again", () => {
+    for (const code of ["paused", "limit_reached", "unreachable", "internal"])
       expect(reduce([], { type: "error", code, message: "m" })[0]).toMatchObject({ kind: "notice", retry: true });
-    for (const code of ["access_revoked", "unauthorized", "not_configured", "internal"])
+    for (const code of ["access_revoked", "unauthorized", "not_configured"])
       expect(reduce([], { type: "error", code, message: "m" })[0]).not.toHaveProperty("retry");
+  });
+});
+
+describe("errorMessage", () => {
+  const defaults = { paused: "default paused" };
+  it("prefers the app's wording, then the default, for a known code", () => {
+    expect(errorMessage("paused", "raw", defaults, { paused: "app paused" })).toBe("app paused");
+    expect(errorMessage("paused", "raw", defaults, {})).toBe("default paused");
+  });
+  it("words an unknown code with the app's internal text when it has one (the arena), so no raw runtime text shows", () => {
+    expect(errorMessage("internal", "Token is expired. Run aws sso login", defaults, { internal: "Something went wrong" })).toBe("Something went wrong");
+    expect(errorMessage("weird_new_code", "raw detail", defaults, { internal: "Something went wrong" })).toBe("Something went wrong");
+  });
+  it("otherwise shows the raw message (the AR app, where a presenter wants the detail)", () => {
+    expect(errorMessage("internal", "raw detail", defaults, undefined)).toBe("raw detail");
   });
 });
