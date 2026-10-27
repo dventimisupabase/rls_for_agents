@@ -4,9 +4,6 @@ begin;
 \ir _fixtures.psql
 select * from no_plan();
 
-insert into auth.oauth_clients (id, client_name, registration_type, redirect_uris, grant_types, token_endpoint_auth_method)
-values ('a6e47000-0000-0000-0000-000000000001', 'ar-copilot-agent', 'manual', 'http://localhost/cb', 'authorization_code', 'client_secret_basic');
-
 -- privileges
 select ok(not has_function_privilege('anon', 'public.ar_aging()', 'execute'), 'anon cannot call ar_aging');
 select ok(not has_function_privilege('anon', 'public.list_pending_actions(text)', 'execute'), 'anon cannot call list_pending_actions');

@@ -79,7 +79,7 @@ RLS decides rows):
 - Name lookups `app.member_email` and `app.client_name` are SECURITY DEFINER (auth tables are not
   readable); `member_email` only resolves people who share a tenant with the caller.
 - pgTAP `08_app_reads.test.sql` (18 tests); the forgery sweep (`07`) now covers both functions.
-  Suite: 138 pass (`evidence/P_pgtap_local.txt`); scorer suite 22 pass.
+  Suite: 140 pass locally (`evidence/P_pgtap_local.txt`) and on stage; scorer suite 22 pass.
 
 **Realtime.** One channel on `app.pending_actions` (Realtime applies RLS to `postgres_changes`). Each
 event only bumps a version; views refetch through `list_pending_actions`, so displayed data always
@@ -125,16 +125,21 @@ formats, pages and highlights new cards.
    inbound JWT's `sub` (pack 03). "Signed in as ..." on the consent screen is a cue a person may
    notice, not a control.
 
-3. **`reset_stage.sql` re-activates grants for every client ever granted** (pack 02 follow-up). It
-   restores one active grant per (stage user, client) pair, including clients since deleted. Locally
-   that leaves orphan grants from test clients (one more per e2e run; harmless). On stage, a reset after
-   deleting a client would re-activate its grant, so an unexpired access token of that client (up to
-   1 h) would work at the database again. Proposed fix: only re-activate grants whose client exists and
-   is not deleted in `auth.oauth_clients`. Not changed in this pass.
+3. **`reset_stage.sql` re-activated grants for every client ever granted** (pack 02 S9 reset; fixed
+   2026-10-27). It restored one active grant per (stage user, client) pair, including clients since
+   deleted: a reset after deleting a client would let its unexpired access tokens (up to 1 h) work at the
+   database again. Stage had 6 such active grants (Alice and Bob, three pack 02 integration-test
+   clients deleted on 2026-10-26; their tokens had long expired). Fix: the reset only re-activates grants
+   of registered, non-deleted clients (`supabase/stage/reset_stage.sql`), with two new `06_reset_stage`
+   assertions (deleted client, unregistered client); the fixture now registers its agent client. The 6
+   stale stage grants were revoked with one targeted UPDATE, and a stage reset afterwards left 0 active.
 
 ## Not yet verified or built
 
-- **Stage.** All evidence above is local, and `20261027100000_app_reads.sql` is not yet pushed to stage. Stage's Site URL is `http://localhost:3000`, so the same app
+- **Stage.** `20261027100000_app_reads.sql` was pushed on 2026-10-27 (`migration list` showed only it
+  pending; `db push`, no config push). pgTAP on stage: 140 pass (`evidence/P_pgtap_stage.txt`). As Alice on
+  stage: `ar_aging()` 8.4 ms, `list_pending_actions` 2.1 ms (pending) and 0.9 ms (decided) execution time.
+  The browser checks have not been run against stage. Stage's Site URL is `http://localhost:3000`, so the same app
   pointed at stage's URL and publishable key would serve stage's consent requests, but that has not been
   run. A stage smoke test with the real agent client leaves a remembered consent for that user that
   `reset_stage.sql` cannot clear (clean up with `revoke_agent` plus `oauth.revokeGrant`), which decides

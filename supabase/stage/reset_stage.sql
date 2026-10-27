@@ -30,10 +30,13 @@ where i.id = h.invoice_id and i.status is distinct from h.first_status;
 delete from public.invoice_status_history where tenant_id in (select id from public.tenants where kind = 'stage');
 
 -- Beat 5: re-activate one grant per (user, client) for stage members, keeping the unique active-grant rule.
+-- Only for registered, non-deleted OAuth clients: re-activating a deleted client's grant would let its
+-- unexpired access tokens work at the database again.
 update app.agent_grants g set revoked_at = null
 where g.id in (
   select distinct on (user_id, client_id) id from app.agent_grants
   where user_id in (select m.user_id from public.memberships m join public.tenants t on t.id = m.tenant_id where t.kind = 'stage')
+    and client_id in (select c.id from auth.oauth_clients c where c.deleted_at is null)
   order by user_id, client_id, granted_at desc
 )
 and not exists (select 1 from app.agent_grants a where a.user_id = g.user_id and a.client_id = g.client_id and a.revoked_at is null);
