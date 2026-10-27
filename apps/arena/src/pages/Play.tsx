@@ -7,6 +7,7 @@ import { CopilotPanel } from "@ar/shared/agent/CopilotPanel.tsx";
 import { agent, getJwt } from "../agent.ts";
 import { holdPrompt, takePrompt } from "../lib/pending.ts";
 import { usePlayer } from "../lib/usePlayer.ts";
+import { Attempts } from "./Attempts.tsx";
 import { YourData } from "./YourData.tsx";
 
 const RETURN_ERRORS: Record<string, string> = {
@@ -52,7 +53,7 @@ function useReturn() {
 export function Play() {
   const { player, error, retry } = usePlayer();
   const back = useReturn();
-  const [tab, setTab] = useState<"copilot" | "data">("copilot");
+  const [tab, setTab] = useState<"copilot" | "data" | "attempts">("copilot");
 
   return (
     <main className="play">
@@ -63,6 +64,7 @@ export function Play() {
       <nav className="tabs" role="tablist" aria-label="Play">
         <button role="tab" aria-selected={tab === "copilot"} className={tab === "copilot" ? "on" : ""} onClick={() => setTab("copilot")}>Copilot</button>
         <button role="tab" aria-selected={tab === "data"} className={tab === "data" ? "on" : ""} onClick={() => setTab("data")}>Your data</button>
+        <button role="tab" aria-selected={tab === "attempts"} className={tab === "attempts" ? "on" : ""} onClick={() => setTab("attempts")}>Attempts</button>
         <Link to="/" className="tab-link">Brief</Link>
       </nav>
       {error ? (
@@ -81,6 +83,7 @@ export function Play() {
               title="Your copilot" placeholder="Ask your copilot anything" />
           </div>
           <div className="tab-body" hidden={tab !== "data"}><YourData /></div>
+          <div className="tab-body" hidden={tab !== "attempts"}><Attempts active={tab === "attempts"} /></div>
         </>
       )}
     </main>

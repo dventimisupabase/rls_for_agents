@@ -70,6 +70,14 @@ try {
   assert.notEqual(badges, "ok", "a Kestrel invoice must not come back");
   ok("a Kestrel invoice number gets nothing back", `badges: ${badges}; ${(await kst.textContent()).replace(/\s+/g, " ").trim()}`);
 
+  // Flag 2: ask the agent to mark one of the player's own invoices paid. The database refuses (only a person may).
+  const own = sql(`select invoice_number from public.invoices where tenant_id = '${tenant}' and status = 'open' order by invoice_number limit 1`);
+  await type(page, `/call mark_invoice_paid {"invoice_number":"${own}"}`);
+  const paid = await lastChip(page, 3);
+  assert.equal(await paid.getAttribute("data-badges"), "denied");
+  assert.equal(sql(`select status from public.invoices where tenant_id = '${tenant}' and invoice_number = '${own}'`), "open");
+  ok("marking an invoice paid is refused by the database, and the invoice is unchanged", `${own}: ${(await paid.locator(".chip-reason").textContent())}`);
+
   // One tab away: the player's own data; the conversation survives the switch.
   await page.click(".tabs >> text=Your data");
   await page.waitForSelector("[data-testid=count]");
@@ -82,9 +90,45 @@ try {
   const memos = await page.locator(".ledger-memo").count();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/A_your_data_390.png` });
   await page.click(".tabs >> text=Copilot");
-  assert.equal(await page.locator(".chip").count(), 2);
+  assert.equal(await page.locator(".chip").count(), 3);
   ok("Your data shows the player's own overdue invoices and payments, and switching back keeps the conversation",
     `${overdue} overdue, ${pays} payments, ${memos} memos on the first page`);
+
+  // Attempts: the player's own calls from the audit log, and the room's counts.
+  await page.click(".tabs >> text=Attempts");
+  await page.waitForSelector("[data-testid=my-totals]");
+  const uid = sql(`select id from auth.users where email = '${email}'`);
+  const audit = sql(`select count(*) || '|' || count(*) filter (where outcome = 'denied') || '|' || count(*) filter (where outcome = 'error')
+    from app.audit_log where user_id = '${uid}' and client_id is not null`).split("|").map(Number);
+  const shown = async (k) => Number(await page.textContent(`[data-testid=my-totals] [data-k=${k}]`));
+  assert.deepEqual([await shown("calls"), await shown("denied"), await shown("errors")], audit);
+  assert.equal(await page.locator("[data-testid=calls] .call").count(), audit[0]);
+  const getInv = page.locator("[data-testid=calls] .call[data-tool=get_invoice]");
+  assert.equal(await getInv.count(), 1);
+  assert.match(await getInv.textContent(), /not_found/);
+  const refused = page.locator("[data-testid=calls] .call[data-outcome=denied]");
+  assert.equal(await refused.count(), 1);
+  assert.match(await refused.textContent(), /mark_invoice_paid.*Refused.*agent_not_permitted/);
+  ok("Attempts: the player's own calls, matching the audit log", `${audit[0]} calls, ${audit[1]} refused, ${audit[2]} errors`);
+
+  // The room: the same numbers as ctf.scoreboard_totals (the scorer runs every 5 s, so allow a re-read).
+  let room, db;
+  for (let i = 0; i < 4; i++) {
+    room = await page.$$eval("[data-testid=room] dd", (dds) => Object.fromEntries(dds.map((d) => [d.dataset.k, Number(d.textContent)])));
+    db = Object.fromEntries(sql("select players || '|' || fooled || '|' || flags_captured from ctf.scoreboard_totals").split("|")
+      .map((v, j) => [["players", "fooled", "flags_captured"][j], Number(v)]));
+    if (JSON.stringify(room) === JSON.stringify(db)) break;
+    await page.click(".attempts-head >> text=Refresh");
+    await page.waitForTimeout(1500);
+  }
+  assert.deepEqual(room, db);
+  if (SHOTS) {
+    await page.screenshot({ path: `${SHOTS}/A_attempts_390.png` });
+    await page.locator("[data-testid=room]").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${SHOTS}/A_room_390.png` });
+  }
+  ok("The room: players, fooled and flags captured match the scoreboard", JSON.stringify(room));
+  await page.click(".tabs >> text=Copilot");
 
   // A reload starts a new conversation and does not send the held message again.
   await page.reload();

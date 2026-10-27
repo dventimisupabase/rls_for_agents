@@ -137,6 +137,28 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
      `evidence/A_your_data_390.png`. Not yet run against the bedrock model or a real phone.
 5. "Your attempts" from `my_agent_activity`; optionally room totals from the counts-only scoreboard views
    through a new read function.
+   **Done (2026-10-27).** A third tab on `/play`, Attempts, refreshed each time it opens. Top: the player's own
+   tally (tool calls, refused by the database, sent to a person to approve, errors) and their calls newest first
+   with the outcome and reason ("Only you see this list"). Below: the room, with players, times a copilot was
+   fooled, and flags captured on a cargo-tag panel.
+   - Data: `my_agent_access` for the player's grants, then `my_agent_activity` per grant, merged in
+     `apps/arena/src/lib/attempts.ts` (each grant's window ends where the next starts, so totals add without
+     double counting; calls merged newest first). Unit tests.
+   - New read function `public.room_totals()` (migration `20261027214917_room_totals.sql`): SECURITY DEFINER
+     like `my_agent_access`, humans only (`human_only` for an agent token), returns exactly the five counts of
+     `ctf.scoreboard_totals` and nothing else (no handles, no prompt text). pgTAP `10_room_totals.test.sql`
+     (anon cannot call it, the same numbers as the view, a new capture is counted, agent refused); the forgery
+     sweep in `07_forgery.test.sql` now pins and exercises it (180 pgTAP tests pass locally). Applied locally
+     only, not to stage.
+   - The arena shows players, fooled and flags captured. It hides prompts and attempts, which read 0 until
+     something records prompts (the Edge Function proxy, CC-9); the function already returns them, so showing
+     them later is a UI change only.
+   - Evidence: `play.e2e.mjs` now 10 steps (`evidence/A_play_e2e_local.txt`): a Flag 2 attempt
+     (`mark_invoice_paid` on the player's own invoice) is DENIED `agent_not_permitted` and the invoice stays
+     open; the Attempts tally and call list match the player's rows in `app.audit_log` (3 calls, 1 refused, 1
+     error), the refused call is stamped with its reason; the room matches `ctf.scoreboard_totals` (re-read
+     while the 5 s scorer catches up: fooled went up by one with this run's refusal). Screenshots:
+     `evidence/A_attempts_390.png`, `evidence/A_room_390.png`.
 6. Friendly copy for `paused` and `limit_reached` (already in CC-8). A pre-turn kill-switch status read would
    be a new proposal (CC-10); the switch itself is pack 03's.
 7. Tests: e2e at a phone viewport (code read from the local mail catcher, provisioning, connect, first prompt,

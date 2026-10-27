@@ -269,3 +269,23 @@ a.primary { display: flex; align-items: center; justify-content: center; text-de
 .consent-actions button { flex: 1; min-height: 3.2rem; font-weight: 700; font-size: 1.05rem; }
 .secondary { border: var(--rule); background: none; color: var(--ink); }
 .consent-error { color: var(--stamp); font-weight: 600; }
+
+/* Attempts: the player's own tally, their calls as a log, then the room in stencil numerals. */
+.attempts { flex: 1; overflow-y: auto; padding: 0.6rem 0.9rem 1.2rem; }
+.attempts h2 { margin: 0; font-size: 1.15rem; font-weight: 750; font-stretch: 85%; }
+.attempts-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+.tally { margin: 0 0 0.8rem; display: grid; grid-template-columns: 1fr 1fr; }
+.tally .cell { margin: 0 -1.5px -1.5px 0; }
+.tally dd { margin: 0; font-family: var(--stencil); font-weight: 800; font-size: 2rem; line-height: 1.1; }
+.calls { list-style: none; margin: 0 0 1.2rem; padding: 0; border-top: var(--rule); }
+.call { display: grid; grid-template-columns: 1fr auto; gap: 0.1rem 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid var(--ink); }
+.call-tool { font-weight: 650; overflow-wrap: anywhere; }
+.call-outcome { font-weight: 800; font-size: 0.85rem; }
+.call-denied .call-outcome { background: var(--stamp); color: #fff; padding: 0.05em 0.45em; transform: rotate(-3deg); }
+.call-sub { grid-column: 1 / -1; font-size: 0.85rem; }
+.attempts .room-title { border-top: 3px double var(--ink); padding-top: 0.7rem; margin-bottom: 0.5rem; }
+.room { margin: 0 0 0.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; }
+.room dt { font-size: 0.85rem; font-weight: 600; font-stretch: 85%; }
+.room dd { margin: 0; font-family: var(--stencil); font-weight: 800; font-size: 2.4rem; line-height: 1; }
+.room-flags { grid-column: 1 / -1; background: var(--tag); padding: 0.6rem 0.8rem; }
+.room-flags dd { font-size: 4.2rem; }
