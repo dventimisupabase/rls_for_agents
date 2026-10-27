@@ -1,0 +1,7 @@
+== arena:brief
+ok   after sign-in the player lands on the brief  (591 ms, typing by script)
+ok   four flags, and the Kestrel invoice number hint
+ok   prize and real-hole policy are visibly marked TBD
+ok   Start playing stays on screen while the brief scrolls
+ok   Start playing opens the play screen  (1471 ms from opening the arena)
+ok   the brief is one tap away from the play screen

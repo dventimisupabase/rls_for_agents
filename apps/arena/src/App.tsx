@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes, useLocation, useSearchParams } from "react-router";
 import { safeNext, signInPath } from "@ar/shared/auth/next.ts";
 import { agentReturnPath } from "./lib/routes.ts";
-import { Home } from "./pages/Home.tsx";
+import { Brief } from "./pages/Brief.tsx";
+import { Play } from "./pages/Play.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { useSession } from "./session.ts";
 
@@ -24,7 +25,15 @@ export function App() {
     <Routes>
       <Route path="/sign-in" element={session ? <SignedIn /> : <SignIn />} />
       <Route path="/agent" element={<AgentReturn />} />
-      <Route path="*" element={session ? <Home email={session.user.email ?? ""} /> : <Navigate to={signInPath(here)} replace />} />
+      {session ? (
+        <>
+          <Route path="/" element={<Brief email={session.user.email ?? ""} />} />
+          <Route path="/play" element={<Play />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </>
+      ) : (
+        <Route path="*" element={<Navigate to={signInPath(here)} replace />} />
+      )}
     </Routes>
   );
 }

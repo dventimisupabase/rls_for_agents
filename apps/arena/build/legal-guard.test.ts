@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { legalGuard, placeholderIn } from "./legal-guard.ts";
-import { LEGAL_MARKER } from "../src/legal.ts";
+import { LEGAL_MARKER, TBD_MARKER } from "../src/legal.ts";
 
 const bundle = (code: string) => ({ "assets/index.js": { type: "chunk", code }, "index.html": { type: "asset", source: "<html>" } });
 
@@ -22,6 +22,11 @@ describe("legal guard", () => {
 
   it("fails a production build while the placeholder ships", () => {
     expect(() => run("production", `"${LEGAL_MARKER} pending"`)).toThrow(/legal placeholder/i);
+  });
+
+  it("also fails a production build while text the humans owe is still marked TBD", () => {
+    expect(placeholderIn(bundle(`x("${TBD_MARKER} prize")`))).toEqual(["assets/index.js"]);
+    expect(() => run("production", `"${TBD_MARKER} prize"`)).toThrow(/placeholder/i);
   });
 
   it("lets a production build through once the real text is in", () => {

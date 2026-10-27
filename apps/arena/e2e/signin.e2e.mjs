@@ -7,27 +7,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, devices } from "playwright";
+import { APP, codeFor, ok } from "./lib.mjs";
 
-const APP = "http://localhost:3001";
-const MAIL = process.env.MAILPIT_URL ?? "http://127.0.0.1:55324";
 const DB_URL = process.env.DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:55322/postgres";
 const SHOTS = process.env.SHOTS;
 const sql = (q) => execFileSync("psql", [DB_URL, "-XAtqc", q]).toString().trim();
-const ok = (name, detail = "") => console.log(`ok   ${name}${detail ? `  (${detail})` : ""}`);
-
-// The newest message to this address that arrived after `since`.
-async function codeFor(email, since) {
-  for (let i = 0; i < 100; i++) {
-    const r = await (await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
-    const m = r.messages?.find((x) => Date.parse(x.Created) >= since - 1000);
-    if (m) {
-      const full = await (await fetch(`${MAIL}/api/v1/message/${m.ID}`)).json();
-      return { subject: full.Subject, text: full.Text, code: full.Text.match(/\b\d{6,10}\b/)?.[0] };
-    }
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  throw new Error(`no email for ${email}`);
-}
 
 const email = `player-${Date.now()}@arena-e2e.test`;
 const browser = await chromium.launch();

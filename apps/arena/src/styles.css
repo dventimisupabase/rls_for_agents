@@ -70,7 +70,9 @@ form { display: flex; flex-direction: column; gap: 1rem; }
 .manifest { margin: 0; display: grid; gap: 0; }
 .manifest .cell + .cell { border-top: 0; }
 
-.consent { margin: 0; font-size: 0.88rem; border-left: 4px solid var(--stamp); padding: 0.2rem 0 0.2rem 0.7rem; }
+/* Text still owed by humans (consent, prize, policy): set off with a stamp-red rule so it is never mistaken
+   for the final word. A production build refuses while any of it ships (build/legal-guard.ts). */
+.consent, .owed { margin: 0; font-size: 0.88rem; border-left: 4px solid var(--stamp); padding: 0.2rem 0 0.2rem 0.7rem; }
 
 button { font: inherit; cursor: pointer; }
 button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
@@ -82,6 +84,7 @@ button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
   font-weight: 700;
   font-size: 1.1rem;
 }
+a.primary { display: flex; align-items: center; justify-content: center; text-decoration: none; }
 .primary:disabled { opacity: 0.6; cursor: progress; }
 .link { background: none; border: 0; padding: 0.4rem 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .quiet-actions { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
@@ -124,3 +127,49 @@ button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
   .tag { animation: tag-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
   @keyframes tag-in { from { transform: rotate(-9deg) translateY(-0.6rem); opacity: 0; } }
 }
+
+/* The brief: sections ruled like the parts of a bill of lading. */
+.brief { border-top: var(--rule); padding-top: 0.7rem; }
+.brief h2 { margin: 0 0 0.5rem; font-size: 1.25rem; font-weight: 750; font-stretch: 85%; }
+.brief p { margin: 0 0 0.6rem; max-width: 34em; }
+.brief p:last-child { margin-bottom: 0; }
+
+/* The flags are numbered 1 to 4 in the contract, so the numbers carry meaning: stencil numerals in their own
+   ruled column, as on a manifest's line items. */
+.flags { list-style: none; margin: 0; padding: 0; border: var(--rule); }
+.flag { display: grid; grid-template-columns: 3.2rem 1fr; }
+.flag + .flag { border-top: var(--rule); }
+.flag-n {
+  display: flex; align-items: flex-start; justify-content: center;
+  border-right: var(--rule);
+  font-family: var(--stencil); font-weight: 800; font-size: 2.6rem; line-height: 1.1;
+  padding-top: 0.2rem;
+}
+.flag > div { padding: 0.5rem 0.7rem 0.6rem; }
+.flag h3 { margin: 0 0 0.2rem; font-size: 1.02rem; font-weight: 700; }
+.flag p { margin: 0; font-size: 0.95rem; }
+.flag .hint { margin-top: 0.45rem; }
+.manifest-no {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.45rem;
+  border: 2px solid var(--ink);
+  font-family: var(--stencil); font-weight: 800; font-size: 1.5rem; letter-spacing: 0.06em; line-height: 1.2;
+  white-space: nowrap;
+}
+
+.rules { margin: 0; padding-left: 1.1rem; }
+.rules li + li { margin-top: 0.35rem; }
+
+/* "Start playing" stays in reach while the brief scrolls. */
+.dock {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -1.1rem;
+  padding: 0.7rem 1.1rem max(0.7rem, env(safe-area-inset-bottom));
+  background: var(--sheet);
+  border-top: 3px double var(--ink);
+}
+.dock .primary { width: 100%; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -93,6 +93,22 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
      `evidence/A_player_tag_390.png`. `scripts/e2e-apps.sh` now takes `<app>:<test>` (for example `arena:signin`).
 3. Brief page: rules, the four flags, the `KST-2026-####` hint, what counts as a capture, the prize, the "found
    a real hole?" policy; text the humans still owe is marked TBD.
+   **Done (2026-10-27).** After sign-in the player lands on the brief (`/`): their handle tag and company, what
+   the game is, the four flags as manifest line items (stencil numerals 1 to 4; names as in section 5 of the
+   shared context, goals said from the player's side), the `KST-2026-####` hint under Flag 1, what counts as a
+   capture (only what the database records show, judged by the scorer; a refused attempt counts as fooled, not
+   captured), the rules (copilot only, infrastructure out of bounds, limits, other players see only handles and
+   counts), and the prize and real-hole policy. "Start playing" is docked at the bottom of the screen so the
+   brief never stands between a player and the first prompt; `/play` is a placeholder until step 4, with the
+   brief one tap back.
+   - Owed text: the prize and the real-hole policy start with `[TBD]`. The legal guard now refuses a production
+     build while either marker (`[LEGAL PLACEHOLDER]`, `[TBD]`) is in the output. Copy lives in
+     `apps/arena/src/content/brief.ts` for whoever writes the final text.
+   - Evidence: unit tests on the brief content and the guard (arena 15 tests); `apps/arena/e2e/brief.e2e.mjs` at
+     an iPhone 14 viewport, 6 steps pass (`evidence/A_brief_e2e_local.txt`): lands on the brief after sign-in,
+     four flags and the hint, both owed texts marked, "Start playing" on screen at the top and the bottom of the
+     brief, play screen about 1.5 s after opening the arena with scripted typing. Screenshots:
+     `evidence/A_brief_top_390.png`, `evidence/A_brief_flags_390.png`.
 4. Play screen: the shared copilot panel, and one tab away a simplified view of the player's own invoices,
    payments and customers. Connecting the agent is folded into the first message.
 5. "Your attempts" from `my_agent_activity`; optionally room totals from the counts-only scoreboard views
