@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
-import { claims, parseScript, PendingStates } from "./dev_agent_core.ts";
+import { appOrigin, claims, corsHeaders, parseScript, PendingStates, simulated } from "./dev_agent_core.ts";
 
 const tok = (p: object) => `x.${btoa(JSON.stringify(p)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.y`;
 
@@ -19,12 +19,38 @@ Deno.test("claims decodes a JWT payload", () => {
 Deno.test("PendingStates: single use, bound to the starting user, expires", () => {
   let now = 1_000;
   const p = new PendingStates(() => now, 600_000);
-  const s = p.create("alice", "verifier-1");
+  const s = p.create("alice", "verifier-1", "http://localhost:3001");
   assertEquals(s.length >= 32, true);
-  assertEquals(p.take(s), { sub: "alice", verifier: "verifier-1" });
+  assertEquals(p.take(s), { sub: "alice", verifier: "verifier-1", origin: "http://localhost:3001" });
   assertEquals(p.take(s), null);  // single use
-  const s2 = p.create("bob", "v2");
+  const s2 = p.create("bob", "v2", "http://localhost:3000");
   now += 600_001;
   assertEquals(p.take(s2), null);  // expired
   assertEquals(p.take("guess"), null);
+});
+
+const APPS = ["http://localhost:3000", "http://localhost:3001"];
+
+Deno.test("appOrigin: an allowed origin is kept; anything else falls back to the first app", () => {
+  assertEquals(appOrigin("http://localhost:3001", APPS), "http://localhost:3001");
+  assertEquals(appOrigin("http://localhost:3000", APPS), "http://localhost:3000");
+  // never an open redirect: the callback only ever returns to an app on the list
+  assertEquals(appOrigin("https://evil.example", APPS), "http://localhost:3000");
+  assertEquals(appOrigin("http://localhost:3001.evil.example", APPS), "http://localhost:3000");
+  assertEquals(appOrigin(null, APPS), "http://localhost:3000");
+});
+
+Deno.test("corsHeaders: echoes only an allowed origin", () => {
+  assertEquals(corsHeaders("http://localhost:3001", APPS)["access-control-allow-origin"], "http://localhost:3001");
+  assertEquals(corsHeaders("https://evil.example", APPS)["access-control-allow-origin"], undefined);
+  assertEquals(corsHeaders(null, APPS)["access-control-allow-origin"], undefined);
+  assertEquals(corsHeaders("https://evil.example", APPS).vary, "origin");
+});
+
+Deno.test("simulated: scripted mode can stand in for the runtime's kill switch and limits", () => {
+  assertEquals(simulated("/simulate paused"), "paused");
+  assertEquals(simulated("  /simulate limit_reached\n"), "limit_reached");
+  assertEquals(simulated("/simulate access_revoked"), null);  // only what pack 03 decides, nothing identity-related
+  assertEquals(simulated("/call whoami"), null);
+  assertEquals(simulated("hello"), null);
 });

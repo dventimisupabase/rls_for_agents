@@ -4,8 +4,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { decide, pendingActions, type Envelope, type PendingAction } from "../lib/data.ts";
-import { money, timeAgo } from "../lib/format.ts";
-import { useLive } from "../lib/live.tsx";
+import { money, timeAgo } from "@ar/shared/data/format.ts";
+import { useLive } from "@ar/shared/data/live.tsx";
 import { ErrorBox, PageHeader, Pill, useAsync } from "../lib/ui.tsx";
 
 export const TITLE: Record<PendingAction["action"], string> = {

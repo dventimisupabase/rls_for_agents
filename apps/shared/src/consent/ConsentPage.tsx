@@ -19,9 +19,12 @@ type Props = {
   onNeedsSignIn: () => void;
   onSignOut: () => Promise<void>;
   go?: (url: string) => void;
+  /** Where this app lets the user take access back; null when it has no such page. */
+  revokeHint?: string | null;
 };
 
-export function ConsentPage({ sb, authorizationId, onNeedsSignIn, onSignOut, go = assign }: Props) {
+export function ConsentPage({ sb, authorizationId, onNeedsSignIn, onSignOut, go = assign,
+  revokeHint = "You can revoke access at any time from the Agent access page." }: Props) {
   const [view, setView] = useState<ConsentView | { kind: "loading" }>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
 
@@ -74,8 +77,7 @@ export function ConsentPage({ sb, authorizationId, onNeedsSignIn, onSignOut, go 
       </ul>
       <p className="consent-note">
         The agent can never do more than you can. The database checks every action it takes, and some
-        actions (marking invoices paid, approving its own proposals) are always refused. You can revoke
-        access at any time from the Agent access page.
+        actions (marking invoices paid, approving its own proposals) are always refused.{revokeHint ? ` ${revokeHint}` : ""}
       </p>
       <div className="consent-actions">
         <button type="button" className="secondary" disabled={busy} onClick={() => decide(false)}>Deny</button>

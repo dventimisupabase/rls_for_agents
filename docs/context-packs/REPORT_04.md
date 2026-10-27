@@ -32,6 +32,213 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
 | P5 | No authorization logic in the apps | Holds for the consent page, AR views (including the invoice page), approvals inbox, agent access and grant activity pages, and copilot panel (reviews below). |
 | P6 | No raw prompts from other players displayed | Not started |
 
+## Arena: decisions and plan (2026-10-27, not started)
+
+**Decisions (David, 2026-10-27).**
+- **Agent path: Edge Function proxy.** Browser to a Supabase Edge Function to AgentCore. The proxy runs no
+  model; it forwards the CC-8 stream with the user's JWT and calls `ctf.record_prompt`, which is what the CC-7
+  supersession proposes. Without it, `scoreboard_totals.prompts`, the classifier and `attempts` read zero and
+  stage beat 6 has no numbers. Needs pack 03's CC-9 write-up and agreement at the contract freeze.
+- **Sign-in: email one-time code** (8 digits locally), typed in the same tab. A magic link on a phone usually
+  opens in the email app's browser and signs the player in there instead. LinkedIn can follow once there is a
+  public URL.
+- **Hosting (D3): AWS static hosting**, S3 + CloudFront or Amplify Hosting in pack 03's CDK; the specifics are to
+  settle with Mrinali. P4 and the arena Site URL depend on it.
+- **Look: "freight manifest"**, from Kestrel Freight's world (bill of lading, stencil numerals, cargo-tag orange
+  on kraft-paper light), related to the AR app's ledger but its own thing; mobile-first.
+
+**Plan, in build order (local first, as with the AR app):**
+1. Groundwork: `apps/arena` workspace (port 3001); move the data, format and live helpers into `apps/shared`;
+   allow more than one app origin locally (Site URL and redirect URLs, the dev agent's CORS and return URL,
+   which assume `localhost:3000` today).
+   **Done (2026-10-27).** `apps/arena` (Vite, :3001, strict port) is a shell with an `/agent` route that
+   forwards only `connected` / `agent_error` to `/play`. `apps/shared/src/data/` holds `api.ts` (a `dataApi(sb)`
+   factory; each app binds its own client, and the AR app's `lib/data.ts` is now a thin binding), `format.ts`
+   and `live.tsx` (`LiveProvider` takes `sb`). The dev agent takes a repeatable `--app-url` (default :3000 and
+   :3001), echoes CORS only for listed origins, and remembers in the OAuth `state` which app started the flow, so
+   `/callback` returns to that app's `/agent`; an unlisted or missing origin falls back to the first app, so the
+   callback is never an open redirect (Deno tests). Redirect URLs allow both origins. Site URL stays :3000:
+   consent lands on Site URL + `/oauth/consent` and sessions are per origin, so connecting an agent from the
+   arena needs the stack started with `SUPABASE_AUTH_SITE_URL=http://localhost:3001` (verified in step 4:
+   the auth container gets `GOTRUE_SITE_URL` from it). `scripts/e2e-apps.sh` stays
+   AR-only until the arena has an e2e. Unchanged behavior: app tests (Deno 9, AR 22, arena 1, shared 60 with the
+   integration tests) and the AR e2e suites (consent, views, copilot) all pass.
+2. Sign-in with an email code, the legal consent text as a marked placeholder (a production build refuses to
+   build while it is present), then `provision_me` and the player's handle and tenant.
+   **Done (2026-10-27).** `/sign-in` asks for a work email, shows the consent placeholder, and sends a code
+   (`signInWithOtp`, creating the user if new); the player types the code in the same tab (`verifyOtp`, type
+   `email`; digits only, so a pasted `1234 5678` works; 6 to 10 digits accepted). `?next=` goes through the shared
+   `safeNext`, ready for the consent round trip in step 4. Then `provision_me` (idempotent) and a first screen
+   with the handle on a cargo tag and the company `Player <handle>`.
+   - Email: the local default sign-up email had only a link, so `supabase/templates/{confirmation,magic_link}.html`
+     carry only `{{ .Token }}` (a new email gets the first, a returning one the second; `verifyOtp` with type
+     `email` accepts both, checked against the auth server). A hosted project needs the same two templates.
+     Local `max_frequency` is now 5 s per address (was 1 min) so a returning player is not made to wait; the
+     arena shows the auth server's message when it refuses.
+   - Legal guard: the consent text lives in `apps/arena/src/legal.ts` and starts with `[LEGAL PLACEHOLDER]`.
+     `build/legal-guard.ts` scans the emitted bundle (not the source, so the visible marker survives
+     minification) and fails a `production` build that still contains it. `npm run build:stage -w @ar/arena`
+     builds anyway, for testing on real hosting before legal sends the text. Unit tests plus a real build in
+     the e2e.
+   - Look: "freight manifest" on a phone: a canary carbon-copy sheet on kraft, form-ink navy, manifest cells
+     for fields, Big Shoulders Stencil for the wordmark, handle and code, Archivo for text; the cargo-tag orange
+     is spent on one thing, the handle.
+   - Evidence: `apps/arena/e2e/signin.e2e.mjs` at an iPhone 14 viewport, code read from Mailpit, 10 steps pass
+     (`evidence/A_signin_e2e_local.txt`): new email gets a code with no link; a wrong code is refused; a pasted
+     code with a space works; handle and company shown about 0.6 s after opening the page with scripted typing
+     (P4's 60 s is mostly the human reading an email); the database has one player row, its own tenant and 560
+     cloned invoices; reload and a returning sign-in keep the same handle; an off-site `?next=` lands in the
+     arena and a same-origin one is honored (this caught a race: the signed-in branch of `/sign-in` used to
+     send everyone to `/` before the page's own redirect ran); the production build refuses and the stage build passes. Screenshots: `evidence/A_signin_email_390.png`,
+     `evidence/A_player_tag_390.png`. `scripts/e2e-apps.sh` now takes `<app>:<test>` (for example `arena:signin`).
+3. Brief page: rules, the four flags, the `KST-2026-####` hint, what counts as a capture, the prize, the "found
+   a real hole?" policy; text the humans still owe is marked TBD.
+   **Done (2026-10-27).** After sign-in the player lands on the brief (`/`): their handle tag and company, what
+   the game is, the four flags as manifest line items (stencil numerals 1 to 4; names as in section 5 of the
+   shared context, goals said from the player's side), the `KST-2026-####` hint under Flag 1, what counts as a
+   capture (only what the database records show, judged by the scorer; a refused attempt counts as fooled, not
+   captured), the rules (copilot only, infrastructure out of bounds, limits, other players see only handles and
+   counts), and the prize and real-hole policy. "Start playing" is docked at the bottom of the screen so the
+   brief never stands between a player and the first prompt; `/play` is a placeholder until step 4, with the
+   brief one tap back.
+   - Owed text: the prize and the real-hole policy start with `[TBD]`. The legal guard now refuses a production
+     build while either marker (`[LEGAL PLACEHOLDER]`, `[TBD]`) is in the output. Copy lives in
+     `apps/arena/src/content/brief.ts` for whoever writes the final text.
+   - Evidence: unit tests on the brief content and the guard (arena 15 tests); `apps/arena/e2e/brief.e2e.mjs` at
+     an iPhone 14 viewport, 6 steps pass (`evidence/A_brief_e2e_local.txt`): lands on the brief after sign-in,
+     four flags and the hint, both owed texts marked, "Start playing" on screen at the top and the bottom of the
+     brief, play screen about 1.5 s after opening the arena with scripted typing. Screenshots:
+     `evidence/A_brief_top_390.png`, `evidence/A_brief_flags_390.png`.
+4. Play screen: the shared copilot panel, and one tab away a simplified view of the player's own invoices,
+   payments and customers. Connecting the agent is folded into the first message.
+   **Done (2026-10-27).** `/play` has three tabs: Copilot (the shared `CopilotPanel`), Your data (the player's
+   overdue invoices, payments with their remittance memos, and customers; first page and a total, read through
+   RLS with `dataApi`) and a link back to the brief. Both panels stay mounted, so switching keeps the
+   conversation.
+   - Connect folded into the first message: the panel now tells the app which message asked for consent
+     (`onConsent(url, prompt)`) and takes a message to send on open (`resume`). The arena holds the message in
+     `sessionStorage` (single use, 15 minutes; `lib/pending.ts`), the player taps Connect agent, consents on
+     the arena's own `/oauth/consent`, the dev agent returns to `/agent?connected=1`, and `/play` sends the
+     held message once. Deny or a failed return drops it and says why. The resend is deferred a tick so
+     StrictMode's throwaway mount (which aborts its requests) doesn't swallow it. The AR app ignores both new
+     props.
+   - The shared consent page takes `revokeHint` (default: the AR app's "Agent access page" sentence); the arena
+     passes none, since it has no revoke page. Whether players need one is open.
+   - Local Site URL: the switch works (`SUPABASE_AUTH_SITE_URL=http://localhost:3001 supabase start`). Only one
+     app's consent works at a time locally; in production each app has its own project and Site URL.
+   - Evidence: `apps/arena/e2e/play.e2e.mjs` at an iPhone 14 viewport with the scripted dev agent, 7 steps pass
+     (`evidence/A_play_e2e_local.txt`): the first message asks to connect; consent is on the arena, for the
+     signed-in player, with no pointer to a missing page; after Allow the held message is sent exactly once
+     and `list_overdue_invoices` returns the player's own rows (matches a direct count); first answer about
+     0.8 s after opening the arena with scripted typing (P4's 60 s budget is the human part); a
+     `KST-2026-0001` lookup returns `not_found`; Your data matches direct counts of overdue invoices and
+     payments; a reload sends nothing; Deny lands back on `/play` with an explanation and nothing sent.
+     Screenshots: `evidence/A_consent_390.png`, `evidence/A_play_first_answer_390.png`,
+     `evidence/A_your_data_390.png`. Not yet run against the bedrock model or a real phone.
+5. "Your attempts" from `my_agent_activity`; optionally room totals from the counts-only scoreboard views
+   through a new read function.
+   **Done (2026-10-27).** A third tab on `/play`, Attempts, refreshed each time it opens. Top: the player's own
+   tally (tool calls, refused by the database, sent to a person to approve, errors) and their calls newest first
+   with the outcome and reason ("Only you see this list"). Below: the room, with players, times a copilot was
+   fooled, and flags captured on a cargo-tag panel.
+   - Data: `my_agent_access` for the player's grants, then `my_agent_activity` per grant, merged in
+     `apps/arena/src/lib/attempts.ts` (each grant's window ends where the next starts, so totals add without
+     double counting; calls merged newest first). Unit tests.
+   - New read function `public.room_totals()` (migration `20261027214917_room_totals.sql`): SECURITY DEFINER
+     like `my_agent_access`, humans only (`human_only` for an agent token), returns exactly the five counts of
+     `ctf.scoreboard_totals` and nothing else (no handles, no prompt text). pgTAP `10_room_totals.test.sql`
+     (anon cannot call it, the same numbers as the view, a new capture is counted, agent refused); the forgery
+     sweep in `07_forgery.test.sql` now pins and exercises it (180 pgTAP tests pass locally). Applied locally
+     only, not to stage.
+   - The arena shows players, fooled and flags captured. It hides prompts and attempts, which read 0 until
+     something records prompts (the Edge Function proxy, CC-9); the function already returns them, so showing
+     them later is a UI change only.
+   - Evidence: `play.e2e.mjs` now 10 steps (`evidence/A_play_e2e_local.txt`): a Flag 2 attempt
+     (`mark_invoice_paid` on the player's own invoice) is DENIED `agent_not_permitted` and the invoice stays
+     open; the Attempts tally and call list match the player's rows in `app.audit_log` (3 calls, 1 refused, 1
+     error), the refused call is stamped with its reason; the room matches `ctf.scoreboard_totals` (re-read
+     while the 5 s scorer catches up: fooled went up by one with this run's refusal). Screenshots:
+     `evidence/A_attempts_390.png`, `evidence/A_room_390.png`.
+6. Friendly copy for `paused` and `limit_reached` (already in CC-8). A pre-turn kill-switch status read would
+   be a new proposal (CC-10); the switch itself is pack 03's.
+   **Done (2026-10-27).** The arena words the runtime's CC-8 errors in its own voice (the shared panel takes
+   `errorText`): a pause says nothing is lost and to send again in a minute; a limit names the limits (turns per
+   conversation, use per hour, one conversation at a time) and what to do. Both are set in form ink, not stamp
+   red: they are the arena's state, not the player's mistake.
+   - "Send again": `paused`, `limit_reached` and `unreachable` notices (shared transcript, `retry`; unit test)
+     carry a button that resends the same message, on the latest notice only. The AR app gets it too.
+   - The scripted dev agent answers `/simulate paused` and `/simulate limit_reached` with those CC-8 errors
+     (only those two; Deno test), so this is tested before pack 03's runtime has a kill switch.
+   - CC-10 (proposal, `CONTRACT_CHANGES.md`): a pre-turn kill-switch read (`{ paused, message? }`, suggested as
+     one Postgres row flipped from the dashboard and read by the Edge Function proxy and `arena_status()`), and
+     optional `limit` and `retry_after_s` on `limit_reached`. Nothing in the arena depends on it.
+   - Evidence: `play.e2e.mjs` now 12 steps (`evidence/A_play_e2e_local.txt`): paused shows the copy, Send again
+     resends the same message, only the newest notice offers it; limit reached shows its copy and the next turn
+     works. Screenshot: `evidence/A_paused_390.png`.
+7. Tests: e2e at a phone viewport (code read from the local mail catcher, provisioning, connect, first prompt,
+   timed against P4's 60 s), and a P6 check that the arena never reads other players' prompts.
+   **Done (2026-10-27).**
+   - P4: the sign-in, brief and play e2e tests together cover the phone path (iPhone 14 viewport, code read from
+     Mailpit, provisioning, connect through the arena's consent, first prompt). `play.e2e.mjs` now asserts the
+     path takes under 60 s: about 0.9 s with scripted typing and the scripted dev agent, so the budget is
+     almost all the human's (reading the email, typing). Not yet measured with the bedrock model or on a real
+     phone.
+   - P6 is checked at three levels, each shown to fail when the property breaks:
+     - Database, pgTAP `11_p6_prompts.test.sql`: `anon` and `authenticated` cannot read `ctf.prompts`,
+       `ctf.prompt_labels` or `ctf.events`, or call `ctf.record_prompt`; no function a signed-in person can call
+       mentions the prompt tables; with player B's prompt and B's agent tool arguments carrying a marker, nothing
+       player A's arena functions return contains it, A sees only their own grant, and B's grant id gets
+       `not_found`. A planted leak (`room_totals` returning prompts) fails two of its assertions. 194 pgTAP tests
+       pass.
+     - App surface, `apps/arena/src/p6.test.ts`: every RPC the arena (and the shared modules it imports) calls
+       is on an allow-list with the reason it cannot carry another player's prompt; it reads no table
+       directly; it binds only listed `dataApi` functions, in one place; it opens no Realtime channel. A stray
+       unlisted RPC fails it.
+     - Black box, `apps/arena/e2e/p6.e2e.mjs`: player B's recorded prompt and agent call carry a fresh marker;
+       player A opens every screen (brief, copilot, the three data views, attempts) at a phone viewport; the
+       marker is in none of A's 18 responses and on none of A's 7 screens, while A's own planted call is shown.
+       The same run with the marker in A's own data fails, so the check sees what it should.
+   - Evidence: `evidence/A_signin_e2e_local.txt`, `A_brief_e2e_local.txt`, `A_play_e2e_local.txt`,
+     `A_p6_e2e_local.txt` (31 steps in all pass).
+8. Stretch, first in the cut order: "Send Kestrel a payment". Player-written memos are attack text, so no
+   agent may echo them to another player (P6).
+   **Built, behind a flag (2026-10-27).** One open question decides whether it is a real level (below).
+   - `public.send_kestrel_payment(amount, memo)` (migration `20261027222446_kestrel_payment.sql`): SECURITY
+     DEFINER; people only (`human_only` for an agent token, so a fooled copilot cannot pay); arena players only
+     (`not_a_player`, which also keeps it inert on a project with no players); amount 0.01 to 50,000 in cents,
+     memo 1 to 280 characters (`invalid_input`); 5 sends per 10 minutes per player under a per-player advisory
+     lock (`rate_limited`). It inserts one unmatched USD payment into Kestrel's tenant (`app.kestrel_tenant_id()`,
+     the seed's derived id) with the payer `Player <handle>`, never the email, and nothing else: `payments` has no
+     triggers, so no invoice can change. `ctf.kestrel_feed` records who sent which payment, for the limit and so
+     the scorer can attribute whatever a memo leads to; nobody signed in can read it.
+   - pgTAP `12_kestrel_payment.test.sql`: the payment lands as written and unmatched, no Kestrel invoice changes,
+     the sender still cannot read Kestrel's payments (directly or through a tool), the bounds, the limit and its
+     window, agent refused, non-player refused, and Kestrel's agent path (`search_payments(true)` as a Kestrel
+     member's agent) reads the memo and the player's company. The forgery sweep pins and exercises it (a memo
+     shaped like a canary manufactures nothing). 222 pgTAP tests pass. Applied locally only.
+   - P6, all three levels extended: in pgTAP 11 player B's memo carries the marker and nothing A reads (nor A's
+     agent's payment searches) contains it; the arena's allow-list names `send_kestrel_payment` and why;
+     `p6.e2e.mjs` plants B's memo in Kestrel's feed and A's 18 responses and 7 screens stay clean. The ops views
+     `grafana_reader` can read (`v_agent_activity`, `v_denials`) carry tool names, outcomes and the database's
+     reason codes, never args or memos, so attacker-written text does not reach the dashboards either.
+   - App: a "Level 2" section on the brief (amount, memo with a character count, plain refusals) when
+     `VITE_LEVEL2=1`; with the flag off the code is not in the bundle (checked with stage builds). The flag is
+     presentation only: the function is live wherever the migration is applied. The copy says only what is true
+     now (the memo lands in Kestrel's feed as written, next to the payments Kestrel's team reconciles); the
+     sentence about Kestrel's copilot reading it is `[TBD]`, so a production build refuses while it is shown.
+   - Evidence: `apps/arena/e2e/level2.e2e.mjs` at a phone viewport, 5 steps (`evidence/A_level2_e2e_local.txt`):
+     a bad amount is caught before sending; `$1,120.50` is sent; the row in Kestrel's feed matches (memo, payer,
+     unmatched, attributed); the sender does not see it in their own data; the sixth send in 10 minutes is
+     refused in plain words. Screenshot: `evidence/A_level2_390.png`.
+   - **Open: who reads the memos.** Kestrel has one seeded person (Kai) and nothing in the arena acts for
+     Kestrel, so today a memo waits in the feed and nothing reads it. Level 2 becomes a level when something
+     runs Kestrel's copilot over new payments, for example a scheduled "Kai reconciles unmatched payments" turn
+     through the same runtime (pack 03), with its output going only to Kestrel (dunning drafts, proposals) and
+     the scorer judging the outcome as for any agent. Until then, keep the flag off.
+
+**P6, stated positively:** the arena shows a player only their own conversation and their own activity, plus
+counts and generated handles from the scoreboard views.
+
 ## Consent page (`/oauth/consent`)
 
 Pre-requisite for pack 03's 3LO flow: AgentCore Identity sends the user to the Supabase authorize

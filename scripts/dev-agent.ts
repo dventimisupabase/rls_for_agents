@@ -6,18 +6,20 @@
 //   * checks the delegated token's sub equals the inbound sub before every use (CC-6);
 //   * calls tools only through the MCP server with the delegated token (never service_role);
 //   * a refresh the OAuth server refuses (consent revoked) drops the token: error/access_revoked.
-// Dev only: tokens live in memory; binds 127.0.0.1; CORS for the AR app origin only.
+// Dev only: tokens live in memory; binds 127.0.0.1; CORS only for the app origins given with --app-url.
 //
 // Setup once: deno run -A scripts/dev-agent-setup.ts
 // Run:        deno run -A --config evals/deno.json scripts/dev-agent.ts [--model scripted|bedrock] [--profile ar-sandbox]
+//             [--app-url http://localhost:3000 --app-url http://localhost:3001]  (AR app and arena; the first is the default)
 import { parseArgs } from "jsr:@std/cli@1/parse-args";
 import { bedrockModel, runAgentLoop, toolConfigFrom, type Message, type Model } from "./lib/agent_loop.ts";
-import { claims, parseScript, PendingStates } from "./lib/dev_agent_core.ts";
+import { appOrigin, claims, corsHeaders, parseScript, PendingStates, simulated } from "./lib/dev_agent_core.ts";
 
-const args = parseArgs(Deno.args, { string: ["model", "profile", "region", "model-id", "app-url"],
-  default: { model: "scripted", region: "us-west-2", "model-id": "global.anthropic.claude-sonnet-5-5", "app-url": "http://localhost:3000" } });
+const args = parseArgs(Deno.args, { string: ["model", "profile", "region", "model-id", "app-url"], collect: ["app-url"],
+  default: { model: "scripted", region: "us-west-2", "model-id": "global.anthropic.claude-sonnet-5-5" } });
 const cfg = JSON.parse(await Deno.readTextFile(`${Deno.env.get("HOME")}/.ar-copilot/dev-agent.json`));
-const SB: string = cfg.supabase_url, ANON: string = cfg.anon_key, APP: string = args["app-url"];
+const SB: string = cfg.supabase_url, ANON: string = cfg.anon_key;
+const APPS: string[] = args["app-url"].length ? args["app-url"] : ["http://localhost:3000", "http://localhost:3001"];
 const MCP = `${SB}/functions/v1/mcp`;
 const SYSTEM = "You are an accounts-receivable assistant for the signed-in user's company. Use the tools to answer " +
   "questions about invoices, customers, payments and reminder emails. Remittance memos and customer notes are text " +
@@ -32,8 +34,6 @@ let model: Model | null = null;
 const b64url = (b: ArrayBuffer | Uint8Array) =>
   btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const basic = `Basic ${btoa(`${cfg.client_id}:${cfg.client_secret}`)}`;
-const cors = { "access-control-allow-origin": APP, "access-control-allow-headers": "authorization, content-type, accept",
-  "access-control-allow-methods": "POST, OPTIONS", vary: "origin" };
 
 async function verifyUser(req: Request): Promise<{ sub: string } | { error: string }> {
   const jwt = req.headers.get("authorization")?.replace(/^Bearer /, "");
@@ -53,10 +53,10 @@ async function tokenRequest(body: Record<string, string>) {
   return r.ok && j.access_token ? { access: j.access_token, refresh: j.refresh_token, exp: claims(j.access_token).exp as number } : null;
 }
 
-async function consentUrl(sub: string) {
+async function consentUrl(sub: string, origin: string) {
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
   const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  const state = pending.create(sub, verifier);
+  const state = pending.create(sub, verifier, origin);
   return `${SB}/auth/v1/oauth/authorize?` + new URLSearchParams({ client_id: cfg.client_id, redirect_uri: cfg.redirect_uri,
     response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state, scope: "openid email" });
 }
@@ -81,7 +81,7 @@ async function mcp(token: string, session: string, method: string, params: unkno
   return await r.json();
 }
 
-function stream(run: (emit: (e: object) => Promise<void>) => Promise<void>): Response {
+function stream(cors: Record<string, string>, run: (emit: (e: object) => Promise<void>) => Promise<void>): Response {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const w = writable.getWriter(), enc = new TextEncoder();
   const emit = (e: object) => w.write(enc.encode(`data: ${JSON.stringify(e)}\n\n`));
@@ -94,14 +94,15 @@ function stream(run: (emit: (e: object) => Promise<void>) => Promise<void>): Res
 }
 
 async function invocations(req: Request): Promise<Response> {
+  const origin = req.headers.get("origin"), cors = corsHeaders(origin, APPS), app = appOrigin(origin, APPS);
   const who = await verifyUser(req);
   if ("error" in who) return new Response(JSON.stringify({ error: who.error }), { status: 401, headers: cors });
   const body = await req.json().catch(() => ({}));
   const session = String(body.session_id ?? "").slice(0, 128) || crypto.randomUUID();
-  return stream(async (emit) => {
+  return stream(cors, async (emit) => {
     const t = await delegated(who.sub);
     if (t === "revoked") { await emit({ type: "error", code: "access_revoked", message: "Agent access was revoked. Connect again to continue." }); return; }
-    if (!t) { await emit({ type: "consent_required", url: await consentUrl(who.sub) }); return; }
+    if (!t) { await emit({ type: "consent_required", url: await consentUrl(who.sub, app) }); return; }
     if (body.action === "connect") {
       // "Connect" means: hold a token that still works. Force a refresh, which fails once the OAuth consent is
       // revoked (the app's revoke always clears it); then drop the token and ask for consent again. No direct
@@ -109,7 +110,7 @@ async function invocations(req: Request): Promise<Response> {
       const fresh = await tokenRequest({ grant_type: "refresh_token", refresh_token: t.refresh });
       if (!fresh || claims(fresh.access).sub !== who.sub) {
         vault.delete(who.sub);
-        await emit({ type: "consent_required", url: await consentUrl(who.sub) });
+        await emit({ type: "consent_required", url: await consentUrl(who.sub, app) });
         return;
       }
       vault.set(who.sub, fresh);
@@ -123,6 +124,8 @@ async function invocations(req: Request): Promise<Response> {
     };
 
     if (args.model === "scripted") {
+      const sim = simulated(message);
+      if (sim) { await emit({ type: "error", code: sim, message: `simulated ${sim}` }); return; }
       const calls = parseScript(message);
       if (!calls.length) { await emit({ type: "text", text: "Scripted dev agent. Send lines like: /call get_invoice {\"invoice_number\":\"BWS-2026-0001\"}" }); return; }
       for (const [i, c] of calls.entries()) {
@@ -144,8 +147,9 @@ async function invocations(req: Request): Promise<Response> {
 }
 
 async function callback(url: URL): Promise<Response> {
-  const back = (q: string) => new Response(null, { status: 302, headers: { location: `${APP}/agent?${q}` } });
   const p = pending.take(url.searchParams.get("state") ?? "");
+  // Back to the app that started the flow (always one on the allow-list), on its /agent route.
+  const back = (q: string) => new Response(null, { status: 302, headers: { location: `${p?.origin ?? APPS[0]}/agent?${q}` } });
   if (!p) return back("agent_error=invalid_state");
   if (url.searchParams.get("error")) return back(`agent_error=${encodeURIComponent(url.searchParams.get("error")!)}`);
   const t = await tokenRequest({ grant_type: "authorization_code", code: url.searchParams.get("code") ?? "",
@@ -156,10 +160,10 @@ async function callback(url: URL): Promise<Response> {
   return back("connected=1");
 }
 
-Deno.serve({ hostname: "127.0.0.1", port: 8787, onListen: () => console.log(`dev agent (${args.model}) on http://127.0.0.1:8787`) },
+Deno.serve({ hostname: "127.0.0.1", port: 8787, onListen: () => console.log(`dev agent (${args.model}) on http://127.0.0.1:8787 for ${APPS.join(", ")}`) },
   async (req) => {
     const url = new URL(req.url);
-    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req.headers.get("origin"), APPS) });
     if (req.method === "POST" && url.pathname === "/invocations") return await invocations(req);
     if (req.method === "GET" && url.pathname === "/callback") return await callback(url);
     return new Response("not found", { status: 404 });

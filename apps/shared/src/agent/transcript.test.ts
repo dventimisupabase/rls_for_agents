@@ -43,4 +43,10 @@ describe("reduce", () => {
     expect(reduce([], { type: "consent_required", url: "https://x" })[0]).toMatchObject({ kind: "notice", tone: "consent", url: "https://x" });
     expect(reduce([], { type: "error", code: "access_revoked", message: "m" })[0]).toMatchObject({ kind: "notice", tone: "error", code: "access_revoked" });
   });
+  it("errors that pass on their own (paused, a limit, unreachable) offer to send the message again", () => {
+    for (const code of ["paused", "limit_reached", "unreachable"])
+      expect(reduce([], { type: "error", code, message: "m" })[0]).toMatchObject({ kind: "notice", retry: true });
+    for (const code of ["access_revoked", "unauthorized", "not_configured", "internal"])
+      expect(reduce([], { type: "error", code, message: "m" })[0]).not.toHaveProperty("retry");
+  });
 });

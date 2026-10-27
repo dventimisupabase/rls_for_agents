@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { agent, getJwt, openConsent } from "../agent.ts";
 import { connectAgent, revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
-import { timeAgo } from "../lib/format.ts";
+import { timeAgo } from "@ar/shared/data/format.ts";
 import { ErrorBox, PageHeader, Pill, useAsync } from "../lib/ui.tsx";
 import { sb } from "../supabase.ts";
 
