@@ -95,7 +95,7 @@ try {
   await page.waitForSelector("input[type=email]");
   await page.goto(`${APP}/sign-in?next=//evil.example/x`);
   await page.fill("input[type=email]", email);
-  await new Promise((r) => setTimeout(r, 5000));  // local max_frequency is 5 s per address
+  await new Promise((r) => setTimeout(r, 5000));  // 5 s resend interval per address (start-stack.sh --arena)
   const sent3 = Date.now();
   await page.click("button.primary");
   await page.waitForSelector("input.code");
