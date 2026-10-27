@@ -87,8 +87,14 @@ Proposal only; nothing in sections 4 or 5 was edited. Implemented on stage and d
   `revoke_agent(client_id)` together with `supabase.auth.oauth.revokeGrant` (CC-4);
   `decide_pending_action(action_id, decision)` for the approvals inbox; `provision_me()` right after a player
   signs in; `whoami()` for diagnostics.
-- Pack 03 (runtime, trusted path, `service_role`): `ctf.record_prompt(user_id, session_id, prompt)` and
-  `ctf.record_runtime_tool_calls(session_id, observed)` (I4 compares the latter with audit rows).
+- ~~Pack 03 (runtime, trusted path, `service_role`): `ctf.record_prompt(user_id, session_id, prompt)` and
+  `ctf.record_runtime_tool_calls(session_id, observed)` (I4 compares the latter with audit rows).~~
+  **Superseded (2026-10-27):** the runtime is the agent path, so it must not hold `service_role` (hard rule 2);
+  a prompt-injected agent with that key could forge or hide I4 evidence (pushback from pack 03). Working
+  proposal, to settle at the contract freeze: a trusted forwarder calls `record_runtime_tool_calls` from the
+  runtime's per-session counts in its logs, and whatever invokes the runtime for the user (for example the
+  Edge Function proxy, which runs no model) calls `record_prompt`. Pack 03 to write it up as CC-9. The
+  functions themselves are unchanged and stay `service_role` only.
 - MCP adapter internal: `audit_rejected_call(tool, args, error)` and `report_canary_hit(tool)`.
 
 ## CC-8 (from pack 04, 2026-10-27): the app-to-agent wire format (proposal for pack 03)
