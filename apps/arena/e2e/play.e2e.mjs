@@ -50,6 +50,9 @@ try {
   await page.click(".consent-actions >> text=Allow");
   const chip = await lastChip(page, 1);
   const elapsed = Date.now() - t0;
+  // P4: QR code to signed in to first prompt in under 60 s on a phone. Typing here is scripted and the agent is the
+  // scripted dev agent, so this bounds the system's share; the human's share (reading the email, typing) is the rest.
+  assert.ok(elapsed < 60_000, `P4: ${elapsed} ms`);
   assert.equal(new URL(page.url()).pathname, "/play");
   assert.equal(await chip.getAttribute("data-tool"), "list_overdue_invoices");
   assert.equal(await chip.getAttribute("data-badges"), "ok");

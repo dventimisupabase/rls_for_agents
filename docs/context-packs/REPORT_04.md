@@ -177,6 +177,29 @@ which broke `evals/run.ts`; pack 02's Deno suites were re-run green after the mo
      works. Screenshot: `evidence/A_paused_390.png`.
 7. Tests: e2e at a phone viewport (code read from the local mail catcher, provisioning, connect, first prompt,
    timed against P4's 60 s), and a P6 check that the arena never reads other players' prompts.
+   **Done (2026-10-27).**
+   - P4: the sign-in, brief and play e2e tests together cover the phone path (iPhone 14 viewport, code read from
+     Mailpit, provisioning, connect through the arena's consent, first prompt). `play.e2e.mjs` now asserts the
+     path takes under 60 s: about 0.9 s with scripted typing and the scripted dev agent, so the budget is
+     almost all the human's (reading the email, typing). Not yet measured with the bedrock model or on a real
+     phone.
+   - P6 is checked at three levels, each shown to fail when the property breaks:
+     - Database, pgTAP `11_p6_prompts.test.sql`: `anon` and `authenticated` cannot read `ctf.prompts`,
+       `ctf.prompt_labels` or `ctf.events`, or call `ctf.record_prompt`; no function a signed-in person can call
+       mentions the prompt tables; with player B's prompt and B's agent tool arguments carrying a marker, nothing
+       player A's arena functions return contains it, A sees only their own grant, and B's grant id gets
+       `not_found`. A planted leak (`room_totals` returning prompts) fails two of its assertions. 194 pgTAP tests
+       pass.
+     - App surface, `apps/arena/src/p6.test.ts`: every RPC the arena (and the shared modules it imports) calls
+       is on an allow-list with the reason it cannot carry another player's prompt; it reads no table
+       directly; it binds only listed `dataApi` functions, in one place; it opens no Realtime channel. A stray
+       unlisted RPC fails it.
+     - Black box, `apps/arena/e2e/p6.e2e.mjs`: player B's recorded prompt and agent call carry a fresh marker;
+       player A opens every screen (brief, copilot, the three data views, attempts) at a phone viewport; the
+       marker is in none of A's 18 responses and on none of A's 7 screens, while A's own planted call is shown.
+       The same run with the marker in A's own data fails, so the check sees what it should.
+   - Evidence: `evidence/A_signin_e2e_local.txt`, `A_brief_e2e_local.txt`, `A_play_e2e_local.txt`,
+     `A_p6_e2e_local.txt` (31 steps in all pass).
 8. Stretch, first in the cut order: "Send Kestrel a payment". Player-written memos are attack text, so no
    agent may echo them to another player (P6).
 

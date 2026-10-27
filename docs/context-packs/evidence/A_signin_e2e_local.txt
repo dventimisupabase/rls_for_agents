@@ -1,8 +1,8 @@
 == arena:signin
 ok   signed out: sign-in page with the marked consent placeholder
-ok   new email: the code arrives by email, with no link  (227 ms)
+ok   new email: the code arrives by email, with no link  (231 ms)
 ok   a wrong code is refused and the player stays on the code step
-ok   signed in and provisioned: handle and company shown  (witty-vole, 583 ms from opening the page, typing by script)
+ok   signed in and provisioned: handle and company shown  (lively-llama, 708 ms from opening the page, typing by script)
 ok   the database agrees: one player row, its own tenant, cloned invoices  (560 invoices)
 ok   reload: same handle, still one player row (provisioning is idempotent)
 ok   returning player: new code, same handle and company
