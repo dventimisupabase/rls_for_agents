@@ -18,9 +18,10 @@ static (`WEB`), so they need no IAM service role.
 2. **Install the Amplify GitHub App on this repo.** Use https://github.com/apps/aws-amplify-us-west-2/installations/new,
    choose "Only select repositories" and pick this repo. This is how Amplify reads the repo and posts PR previews.
    Without it, Amplify falls back to an OAuth connection that leaves a webhook and a deploy key on the repo.
-3. **Store a GitHub token in Secrets Manager** as `arcopilot/amplify-github-token`. Use a fine-grained personal
-   access token limited to this repo, with read access to contents and metadata. Amplify uses it once, to
-   connect, and doesn't store it. The template refers to the secret, so the token never appears in it.
+3. **Store a GitHub token in Secrets Manager** as `arcopilot/amplify-github-token`. Per AWS's
+   [setup for CloudFormation deployments](https://docs.aws.amazon.com/amplify/latest/userguide/setting-up-GitHub-access.html#setting-up-github-app-cloudformation),
+   it's a classic personal access token with the `admin:repo_hook` scope; give it a short expiry. Amplify uses it
+   once, to connect, and doesn't store it. The template refers to the secret, so the token never appears in it.
    ```sh
    read -rs GH_TOKEN   # paste the token (not echoed)
    aws secretsmanager create-secret --name arcopilot/amplify-github-token --secret-string "$GH_TOKEN"
@@ -62,6 +63,12 @@ such a preview could receive sign-in tokens. Previews still work with password s
 - **The arena can't sign in on stage yet.** Stage's email templates send links, and the arena expects a code (its
   local templates are set by `scripts/start-stack.sh --arena`).
 - **No custom domain yet.** The arena's short domain (for the QR code, P4) gets added once it exists.
+- **The `arena` branch doesn't exist yet.** Create it before deploying the arena environment.
+- **A hosted app makes its project's URL public.** Every Supabase client ships its project URL in the browser
+  bundle, so the stage ref becomes visible once the AR app is hosted. The repo still never names it.
+- **Untested until the first deploy:** that CloudFormation accepts the Secrets Manager reference in
+  `AccessToken`, that the connection uses the GitHub App (repo hooks and deploy keys stay at 0), and whether the
+  first build starts on its own.
 
 ## Tests
 

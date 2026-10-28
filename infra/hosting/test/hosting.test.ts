@@ -11,7 +11,10 @@ const inputs: Inputs = {
 };
 const synth = (env: "stage" | "arena", extra: Partial<Inputs> = {}) => {
   const app = new App();
-  const stack = new HostingStack(app, `Hosting-arcopilot-${env}`, hostingConfig(env, { ...inputs, ...extra }));
+  const stack = new HostingStack(app, `Hosting-arcopilot-${env}`, {
+    ...hostingConfig(env, { ...inputs, ...extra }),
+    env: { account: "123456789012", region: "us-west-2" },  // a made-up account, so the no-account-id check can fail
+  });
   return Template.fromStack(stack);
 };
 const buildSpecOf = (t: Template, name: string): string => {
