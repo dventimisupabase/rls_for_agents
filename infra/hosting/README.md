@@ -29,6 +29,29 @@ would build and serve a fork's PR on our Amplify domain. Changes reach stage by 
    unset GH_TOKEN
    ```
 
+4. **Let CloudFormation's deploy role create Amplify apps and read the token secret.** In the shared sandbox, CDK
+   is bootstrapped with a least-privilege execution policy (`ar-copilot-cfn-exec`), which allows nothing for
+   Amplify. Add this statement to it (as a new policy version), with the account id filled in:
+   ```json
+   {
+     "Sid": "AmplifyHosting",
+     "Effect": "Allow",
+     "Action": [
+       "amplify:CreateApp", "amplify:GetApp", "amplify:UpdateApp", "amplify:DeleteApp",
+       "amplify:CreateBranch", "amplify:GetBranch", "amplify:UpdateBranch", "amplify:DeleteBranch",
+       "amplify:TagResource", "amplify:UntagResource", "amplify:ListTagsForResource"
+     ],
+     "Resource": "arn:aws:amplify:us-west-2:<account>:apps/*"
+   },
+   {
+     "Sid": "AmplifyGitHubToken",
+     "Effect": "Allow",
+     "Action": "secretsmanager:GetSecretValue",
+     "Resource": "arn:aws:secretsmanager:us-west-2:<account>:secret:arcopilot/amplify-github-token-*"
+   }
+   ```
+   Accounts bootstrapped with CDK's default policy (AdministratorAccess) don't need this.
+
 ## Deploy
 
 ```sh
