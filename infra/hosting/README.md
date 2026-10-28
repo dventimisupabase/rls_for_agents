@@ -61,8 +61,10 @@ AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage deploy
 
 The script reads `STAGE_REF` from `~/.ar-copilot/stage.env` (or `ARENA_REF` from `arena.env`) and looks up the
 project's publishable key with the Supabase CLI. No project value is committed. The stack refuses any key that
-isn't publishable, because Vite variables ship to the browser. Set `AGENT_MODE` and `AGENT_URL` to point the
-copilot at an agent; the default mode is `agentcore`.
+isn't publishable, because Vite variables ship to the browser. The default agent mode is `agentcore`, and in that
+mode the apps call the project's agent proxy (`<project URL>/functions/v1/agent`, `supabase/functions/agent`), which
+holds the runtime's invoke URL as the function secret `AGENTCORE_INVOKE_URL`. Set `AGENT_MODE` and `AGENT_URL` to
+point the copilot elsewhere.
 
 The stack outputs each app's URL (`ArAppUrl`, `ArenaUrl`). Creating the stack doesn't start a build. After that,
 every push to the branch builds, through a push webhook Amplify adds to the repo (that's what the token's
@@ -82,8 +84,10 @@ These settings live outside this stack:
 
 ## Known gaps
 
-- **The hosted copilot isn't live yet.** The `agentcore` adapter is a stub until pack 03 provides the runtime
-  details. The local dev agent accepts only the localhost origins.
+- **The hosted copilot isn't live yet.** The apps call the agent proxy, which isn't deployed to the project until
+  pack 03 sends the runtime's invoke URL (then `supabase secrets set AGENTCORE_INVOKE_URL=...` and
+  `supabase functions deploy agent`). Until then the copilot shows a connection error. The local dev agent accepts
+  only the localhost origins.
 - **The arena can't sign in on stage yet.** Stage's email templates send links, and the arena expects a code (its
   local templates are set by `scripts/start-stack.sh --arena`).
 - **No custom domain yet.** The arena's short domain (for the QR code, P4) gets added once it exists.

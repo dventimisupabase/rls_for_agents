@@ -10,7 +10,7 @@ export interface Inputs {
   publishableKey: string;
   // "agentcore" (the AgentCore Runtime adapter, pack 03) unless overridden; "dev" is the local dev agent.
   agentMode?: string;
-  agentUrl?: string;
+  agentUrl?: string;  // default in agentcore mode: the project's agent proxy, <supabaseUrl>/functions/v1/agent
 }
 
 export interface AppSpec {
@@ -55,6 +55,9 @@ export function hostingConfig(envName: EnvName, inputs: Inputs): HostingProps {
     VITE_SUPABASE_PUBLISHABLE_KEY: inputs.publishableKey,
     VITE_AGENT_MODE: inputs.agentMode ?? "agentcore",
   };
-  if (inputs.agentUrl) appEnv.VITE_AGENT_URL = inputs.agentUrl;
+  // AgentCore goes through the project's agent proxy (supabase/functions/agent) unless overridden: the runtime's
+  // invoke URL names the AWS account, so it stays a function secret instead of shipping in the bundle.
+  const agentUrl = inputs.agentUrl ?? (appEnv.VITE_AGENT_MODE === "agentcore" ? `${inputs.supabaseUrl}/functions/v1/agent` : undefined);
+  if (agentUrl) appEnv.VITE_AGENT_URL = agentUrl;
   return { envName, repository: REPOSITORY, tokenSecretName: TOKEN_SECRET, appEnv, ...PER_ENV[envName] };
 }

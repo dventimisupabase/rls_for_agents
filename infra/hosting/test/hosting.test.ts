@@ -52,6 +52,13 @@ describe("hostingConfig", () => {
     const c = hostingConfig("stage", { ...inputs, agentMode: "dev", agentUrl: "https://agent.example/invocations" });
     expect(c.appEnv).toMatchObject({ VITE_AGENT_MODE: "dev", VITE_AGENT_URL: "https://agent.example/invocations" });
   });
+
+  // The browser reaches the AgentCore Runtime through the project's agent proxy (supabase/functions/agent), so the
+  // runtime's invoke URL, which names the AWS account, never ships in the bundle.
+  it("in AgentCore mode, points the apps at the project's agent proxy by default", () => {
+    expect(hostingConfig("stage", inputs).appEnv.VITE_AGENT_URL).toBe(`${inputs.supabaseUrl}/functions/v1/agent`);
+    expect(hostingConfig("stage", { ...inputs, agentMode: "dev" }).appEnv.VITE_AGENT_URL).toBeUndefined();
+  });
 });
 
 describe("HostingStack", () => {
