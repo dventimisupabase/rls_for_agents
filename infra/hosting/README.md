@@ -64,8 +64,12 @@ project's publishable key with the Supabase CLI. No project value is committed. 
 isn't publishable, because Vite variables ship to the browser. Set `AGENT_MODE` and `AGENT_URL` to point the
 copilot at an agent; the default mode is `agentcore`.
 
-The stack outputs each app's URL (`ArAppUrl`, `ArenaUrl`). The first build starts on the first push to the branch
-after deploy, or from the Amplify console.
+The stack outputs each app's URL (`ArAppUrl`, `ArenaUrl`). Creating the stack doesn't start a build. After that,
+every push to the branch builds, through a push webhook Amplify adds to the repo (that's what the token's
+`admin:repo_hook` scope is for). To build right after the first deploy:
+```sh
+aws amplify start-job --app-id <app id> --branch-name main --job-type RELEASE
+```
 
 ## After the first deploy
 
@@ -86,9 +90,6 @@ These settings live outside this stack:
 - **The `arena` branch doesn't exist yet.** Create it before deploying the arena environment.
 - **A hosted app makes its project's URL public.** Every Supabase client ships its project URL in the browser
   bundle, so the stage ref becomes visible once the AR app is hosted. The repo still never names it.
-- **Untested until the first deploy:** that CloudFormation accepts the Secrets Manager reference in
-  `AccessToken`, that the connection uses the GitHub App (repo hooks and deploy keys stay at 0), and whether the
-  first build starts on its own.
 
 ## Tests
 
