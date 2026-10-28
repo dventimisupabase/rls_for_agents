@@ -438,6 +438,11 @@ enabled = true
 [functions.mcp]
 verify_jwt = false
 
+# Agent proxy (browser to AgentCore Runtime). The runtime's inbound authorizer checks the user's JWT; the proxy
+# rejects a missing bearer itself. The gateway check is off so CORS preflights (no Authorization) get through.
+[functions.agent]
+verify_jwt = false
+
 # Hosted projects: this base config is reviewed to be safe to push as-is (it matches the hosted values for
 # environment-specific settings). The project ref is not committed; scripts read it from ~/.ar-copilot/stage.env.
 # Always run `supabase config diff` before `supabase config push`.
