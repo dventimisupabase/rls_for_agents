@@ -184,7 +184,7 @@ scripts/                       deploy, reset-stage, load-test
 |----|----------------------------------------------------------------------|--------------|-------------|
 | D1 | Delegated tokens vs. user-JWT passthrough                            | Both (spike) | Mon Oct 26  |
 | D2 | MCP server host: Supabase Edge Function vs. behind AgentCore Gateway | Both         | after spike |
-| D3 | Front-end hosting (AWS hosting preferred for the "on AWS" story)     | Apps owner   | AWS static hosting (S3 + CloudFront or Amplify Hosting, in pack 03's CDK; details with Mrinali), Tue Oct 27 |
+| D3 | Front-end hosting (AWS hosting preferred for the "on AWS" story)     | Apps owner   | AWS Amplify Hosting, Git-connected, one Amplify app per front end (#5). Stage in the shared sandbox on default `amplifyapp.com` URLs; arena account and custom domain decided before Nov 6. Environments: PR previews and `main` on stage Supabase (AR app owns consent), arena on the arena project (arena owns consent). `infra/hosting` CDK stack built by David, reviewed by Mrinali (pending her OK). Wed Oct 28 |
 | D4 | Claude model on Bedrock                                              | Mrinali      | open        |
 | D5 | AWS region (co-locate with Supabase projects)                        | Mrinali      | open        |
 | D6 | CDK vs. Terraform                                                    | Mrinali      | open        |
