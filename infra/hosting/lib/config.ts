@@ -22,7 +22,6 @@ export interface HostingProps {
   envName: EnvName;
   repository: string;
   branch: string;
-  previews: boolean;
   tokenSecretName: string;  // Secrets Manager secret holding the GitHub token for the Amplify GitHub App
   apps: AppSpec[];
   appEnv: Record<string, string>;  // Vite build variables, shared by every app in the environment
@@ -32,9 +31,9 @@ const REPOSITORY = "https://github.com/dventimisupabase/rls_for_agents";
 const TOKEN_SECRET = "arcopilot/amplify-github-token";
 
 // The arena's production build fails while legal text is a placeholder; stage builds it in stage mode.
-const PER_ENV: Record<EnvName, { branch: string; previews: boolean; apps: AppSpec[] }> = {
-  stage: { branch: "main", previews: true, apps: [{ name: "ar-app", buildScript: "build" }, { name: "arena", buildScript: "build:stage" }] },
-  arena: { branch: "arena", previews: false, apps: [{ name: "arena", buildScript: "build" }] },
+const PER_ENV: Record<EnvName, { branch: string; apps: AppSpec[] }> = {
+  stage: { branch: "main", apps: [{ name: "ar-app", buildScript: "build" }, { name: "arena", buildScript: "build:stage" }] },
+  arena: { branch: "arena", apps: [{ name: "arena", buildScript: "build" }] },
 };
 
 // VITE_ values ship to the browser, so only a publishable key may go in. Legacy JWT keys carry their role.

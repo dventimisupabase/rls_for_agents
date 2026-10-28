@@ -3,20 +3,21 @@
 A CDK stack that hosts the static front ends on AWS Amplify Hosting, built from this repo on every push. Decided
 in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md` section 8.
 
-| Environment | Stack | Branch | Apps | Supabase project | PR previews |
-|---|---|---|---|---|---|
-| stage | `Hosting-arcopilot-stage` | `main` | `ar-app`, `arena` (built with `build:stage`) | stage | on |
-| arena | `Hosting-arcopilot-arena` | `arena` | `arena` (production build, legal guard on) | arena | off |
+| Environment | Stack | Branch | Apps | Supabase project |
+|---|---|---|---|---|
+| stage | `Hosting-arcopilot-stage` | `main` | `ar-app`, `arena` (built with `build:stage`) | stage |
+| arena | `Hosting-arcopilot-arena` | `arena` | `arena` (production build, legal guard on) | arena |
 
 Each front end is its own Amplify app, built from its folder in the `apps/` npm workspace on Node 24. The apps are
-static (`WEB`), so they need no IAM service role.
+static (`WEB`), so they need no IAM service role. There are no PR previews: the repo is public, so a preview
+would build and serve a fork's PR on our Amplify domain. Changes reach stage by merging to `main`.
 
 ## Before the first deploy (once per AWS account)
 
 1. **CDK bootstrap.** The shared sandbox is already bootstrapped in us-west-2. For a new account, run
    `npx cdk bootstrap` from this folder.
 2. **Install the Amplify GitHub App on this repo.** Use https://github.com/apps/aws-amplify-us-west-2/installations/new,
-   choose "Only select repositories" and pick this repo. This is how Amplify reads the repo and posts PR previews.
+   choose "Only select repositories" and pick this repo. This is how Amplify reads the repo.
    Without it, Amplify falls back to an OAuth connection that leaves a webhook and a deploy key on the repo.
 3. **Store a GitHub token in Secrets Manager** as `arcopilot/amplify-github-token`. Per AWS's
    [setup for CloudFormation deployments](https://docs.aws.amazon.com/amplify/latest/userguide/setting-up-GitHub-access.html#setting-up-github-app-cloudformation),
@@ -51,10 +52,6 @@ These settings live outside this stack:
   Add the app URLs to the redirect allow-list.
 - **AgentCore (pack 03):** add `<ar-app URL>/agent` to the workload identity's `allowedResourceOauth2ReturnUrls`
   (issue #6).
-
-**Never add preview URLs to the Supabase redirect allow-list.** The repo is public, so anyone can open a PR from a
-fork, and its preview builds and serves their code on our Amplify domain. If preview URLs were allowed redirects,
-such a preview could receive sign-in tokens. Previews still work with password sign-in, which needs no redirect.
 
 ## Known gaps
 

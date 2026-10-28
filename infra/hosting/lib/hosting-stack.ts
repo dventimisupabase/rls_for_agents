@@ -4,8 +4,8 @@ import type { Construct } from "constructs";
 import type { AppName, AppSpec, HostingProps } from "./config.ts";
 
 // Amplify Hosting for the static front ends (D3). One Amplify app per front end, built from its folder in the
-// `apps/` npm workspace. Static (WEB) apps need no IAM service role, which is also what lets PR previews run on a
-// public repo: a fork's preview build can't act with our AWS permissions.
+// `apps/` npm workspace. Static (WEB) apps need no IAM service role. No PR previews: the repo is public, so a
+// preview would build and serve a fork's PR on our Amplify domain.
 
 // Amplify runs build commands in one shell, so a `cd` carries over to the next command.
 const buildSpec = (app: AppSpec) => `version: 1
@@ -62,7 +62,7 @@ export class HostingStack extends Stack {
         branchName: props.branch,
         stage: "PRODUCTION",
         enableAutoBuild: true,
-        enablePullRequestPreview: props.previews,
+        enablePullRequestPreview: false,
       });
       new CfnOutput(this, OUTPUT_ID[spec.name], { value: `https://${props.branch}.${app.attrDefaultDomain}` });
     }

@@ -24,17 +24,15 @@ const buildSpecOf = (t: Template, name: string): string => {
 };
 
 describe("hostingConfig", () => {
-  it("stage hosts both apps from main, with PR previews; the arena builds in stage mode", () => {
+  it("stage hosts both apps from main; the arena builds in stage mode", () => {
     const c = hostingConfig("stage", inputs);
     expect(c.branch).toBe("main");
-    expect(c.previews).toBe(true);
     expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["ar-app", "build"], ["arena", "build:stage"]]);
   });
 
-  it("arena hosts only the arena, from the arena branch, with the production build and no previews", () => {
+  it("arena hosts only the arena, from the arena branch, with the production build", () => {
     const c = hostingConfig("arena", inputs);
     expect(c.branch).toBe("arena");
-    expect(c.previews).toBe(false);
     expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["arena", "build"]]);
   });
 
@@ -113,20 +111,29 @@ describe("HostingStack", () => {
     });
   });
 
-  it("stage: main auto-builds as the production branch, with PR previews", () => {
+  it("stage: main auto-builds as the production branch", () => {
     const t = synth("stage");
     t.resourceCountIs("AWS::Amplify::Branch", 2);
     t.hasResourceProperties("AWS::Amplify::Branch", {
-      BranchName: "main", EnableAutoBuild: true, EnablePullRequestPreview: true, Stage: "PRODUCTION",
+      BranchName: "main", EnableAutoBuild: true, Stage: "PRODUCTION",
     });
   });
 
-  it("arena: one app on the arena branch, no previews", () => {
+  it("arena: one app on the arena branch", () => {
     const t = synth("arena");
     t.resourceCountIs("AWS::Amplify::App", 1);
     t.hasResourceProperties("AWS::Amplify::App", { Name: "arcopilot-arena-arena" });
-    t.hasResourceProperties("AWS::Amplify::Branch", { BranchName: "arena", EnablePullRequestPreview: false });
+    t.hasResourceProperties("AWS::Amplify::Branch", { BranchName: "arena" });
     expect(buildSpecOf(t, "arcopilot-arena-arena")).toContain("npm run build\n");
+  });
+
+  // The repo is public: a preview would build and serve a fork's PR on our Amplify domain. We don't need them.
+  it("no PR previews on any branch, in any environment", () => {
+    for (const env of ["stage", "arena"] as const) {
+      const branches = Object.values(synth(env).findResources("AWS::Amplify::Branch"));
+      expect(branches.length).toBeGreaterThan(0);
+      for (const b of branches) expect(b.Properties.EnablePullRequestPreview).toBe(false);
+    }
   });
 
   it("outputs each app's URL", () => {
