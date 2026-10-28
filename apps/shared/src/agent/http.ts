@@ -40,8 +40,9 @@ export function httpAgentClient(url: string, fetchFn: typeof fetch = (...a) => f
 // - the conversation id goes in the runtime session-id header too;
 // - the 3LO return comes back with no query parameters, so the session_uri from consent_required is kept in
 //   this tab (sessionStorage) and sent back as {"action": "complete"} when the user lands on the return URL.
-//   AgentCore's session is short-lived: an old one is dropped, and the runtime's "Invalid or expired
-//   session" becomes session_expired so the app can start connect again.
+//   AgentCore's session is short-lived: an old one is dropped, and an expired one is session_expired (CC-8,
+//   decided 2026-10-28) so the app can start connect again. Until the runtime sends that code, its
+//   "Invalid or expired session" message counts too.
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const PENDING = "agentcore.pendingConnect";
 const TTL = 10 * 60_000;

@@ -40,12 +40,14 @@ export function bedrockModel(opts: { region: string; profile?: string; modelId: 
 }
 
 // Models miscount long lists (Sonnet 5.5 reported 21 rows as 20, twice). A list result goes back with a plain
-// row count next to the unchanged envelope, so the model can quote the number instead of counting.
+// row count next to the unchanged envelope, so the model can quote the number instead of counting. A capped list
+// ("truncated": true, issue #6) says the count is a floor, so the model doesn't hedge.
 export function resultContent(env: Envelope): unknown[] {
   const d = env.data;
-  return env.ok === true && Array.isArray(d)
-    ? [{ text: `${d.length} ${d.length === 1 ? "row" : "rows"} returned.` }, { json: env }]
-    : [{ json: env }];
+  if (env.ok !== true || !Array.isArray(d)) return [{ json: env }];
+  const count = `${d.length} ${d.length === 1 ? "row" : "rows"} returned.`;
+  const text = env.truncated === true ? `${count} The list is capped at ${d.length}, so there are more: say "at least ${d.length}".` : count;
+  return [{ text }, { json: env }];
 }
 
 export async function runAgentLoop(o: {

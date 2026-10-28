@@ -122,7 +122,7 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
 | `text`             | `text`                                         | Assistant text (a whole turn's text, or a delta if the runtime streams tokens).                 |
 | `tool_call`        | `id`, `name`, `args`                           | The agent is calling an MCP tool.                                                               |
 | `tool_result`      | `id`, `name`, `envelope`                       | The tool's section 4.4 envelope, unmodified. The app derives the ok / denied / proposal badge.  |
-| `error`            | `code`, `message`                              | `code` in `access_revoked`, `limit_reached`, `paused` (kill switch), `unauthorized`, `internal`. |
+| `error`            | `code`, `message`                              | `code` in `access_revoked`, `limit_reached`, `paused` (kill switch), `unauthorized`, `session_expired` (`complete` only), `internal`. |
 | `done`             |                                                | End of the turn.                                                                                |
 
 **Behaviors the app relies on.**
@@ -137,8 +137,9 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
   **AgentCore (2026-10-28, issue #6):** the runtime does the binding call itself. AgentCore returns the browser to
   the return URL with no query parameters, so the app keeps `session_uri` from `consent_required` (this tab,
   sessionStorage, 10 minutes) and, back on the return URL, sends `{"session_id": ..., "action": "complete",
-  "session_uri": ...}`. An expired session (`error` with code `session_expired`, proposed; today the message
-  "Invalid or expired session") makes the app start `connect` again, once. On AgentCore the app also sends the
+  "session_uri": ...}`. An expired session makes the app start `connect` again, once. **Decided (David,
+  2026-10-28, issue #6):** `complete` reports it as an `error` event with code `session_expired`. Until the
+  runtime sends that code, the app also reads the message "Invalid or expired session" as expired. On AgentCore the app also sends the
   conversation id as `X-Amzn-Bedrock-AgentCore-Runtime-Session-Id`.
 - `connect` should confirm the held vault token still works, not just that one exists: a vault token survives
   "Revoke agent access" until it expires. The dev agent forces a refresh (refused once the app has revoked the
@@ -174,3 +175,21 @@ runtime.
 3. **Limit details.** Optional fields on the CC-8 error event: `limit` (`turns_per_conversation`,
    `usage_per_hour`, `concurrent_conversations`) and `retry_after_s`. With them the arena can say which limit
    was reached and when to try again. Without them it shows its general limit message (current behavior).
+
+## CC-11 (from pack 02, 2026-10-28): list results say when they hit the row cap (section 4.4)
+
+**Decided (David, 2026-10-28, issue #6).** Proposed after the first live stage run, where
+`list_overdue_invoices` returned exactly 200 rows for Alice and Claude hedged on the count.
+
+**Change.** The three list tools (`list_overdue_invoices`, `list_customer_contacts`, `search_payments`) keep the
+200-row cap. When more rows match, the success envelope says so:
+```json
+{ "ok": true, "data": [ ...200 rows... ], "truncated": true }
+```
+Under the cap the envelope is unchanged (no `truncated` key). Denials and errors are unchanged. The audit row's
+`rows_returned` is the number returned (200). Migration `20261028231102_list_truncated.sql`. Test
+`supabase/tests/database/13_list_truncated.test.sql`.
+
+**For pack 03.** The runtime's "N rows returned." line (CC-8) should say the count is a floor when
+`truncated` is true. The local dev agent sends: `200 rows returned. The list is capped at 200, so there are
+more: say "at least 200".` Stage beat 1 is unaffected: "more than a year overdue" returns 38 rows for Alice.

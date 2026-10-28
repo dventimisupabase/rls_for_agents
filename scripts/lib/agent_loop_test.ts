@@ -1,6 +1,6 @@
 // The shared agent loop (evals/run.ts bedrock mode and scripts/dev-agent.ts) against a fake model.
 import { assertEquals } from "jsr:@std/assert@1";
-import { runAgentLoop, toolConfigFrom, type LoopEvent, type Model } from "./agent_loop.ts";
+import { resultContent, runAgentLoop, toolConfigFrom, type LoopEvent, type Model } from "./agent_loop.ts";
 
 // A fake Converse model: replays scripted assistant messages and records what it was sent.
 function fakeModel(script: unknown[][]) {
@@ -73,4 +73,10 @@ Deno.test("list results carry an explicit row count; other results do not", asyn
   const results = (seen[1].at(-1) as { content: { toolResult: { content: unknown[] } }[] }).content.map((c) => c.toolResult.content);
   assertEquals(results[0], [{ text: "3 rows returned." }, { json: { ok: true, data: [{}, {}, {}] } }]);
   assertEquals(results[1], [{ json: { ok: true, data: { id: "x" } } }]);
+});
+
+// List tools cap at 200 rows and say so with "truncated": true (issue #6). The count line says it is a floor.
+Deno.test("a truncated list says the count is a floor", () => {
+  const env = { ok: true, data: Array.from({ length: 200 }, () => ({})), truncated: true };
+  assertEquals(resultContent(env)[0], { text: "200 rows returned. The list is capped at 200, so there are more: say \"at least 200\"." });
 });
