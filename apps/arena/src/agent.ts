@@ -7,7 +7,7 @@ import { sb } from "./supabase.ts";
 
 const mode = import.meta.env.VITE_AGENT_MODE ?? "dev";
 export const agent: AgentClient = mode === "agentcore"
-  ? agentCoreClient()
+  ? agentCoreClient(import.meta.env.VITE_AGENT_URL)
   : httpAgentClient(import.meta.env.VITE_AGENT_URL ?? "http://127.0.0.1:8787/invocations");
 
 export const getJwt = async () => (await sb.auth.getSession()).data.session?.access_token ?? null;

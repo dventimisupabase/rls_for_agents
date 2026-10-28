@@ -117,7 +117,7 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
 
 | `type`             | Fields                                         | Meaning                                                                                         |
 |--------------------|------------------------------------------------|-------------------------------------------------------------------------------------------------|
-| `consent_required` | `url`                                          | No usable delegated token. The app opens `url` (3LO). Ends the stream.                          |
+| `consent_required` | `url`, `session_uri` (AgentCore)               | No usable delegated token. The app opens `url` (3LO). Ends the stream.                          |
 | `connected`        | `client_id`                                    | A delegated token is held (reply to `connect`).                                                 |
 | `text`             | `text`                                         | Assistant text (a whole turn's text, or a delta if the runtime streams tokens).                 |
 | `tool_call`        | `id`, `name`, `args`                           | The agent is calling an MCP tool.                                                               |
@@ -134,6 +134,12 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
   vault token, and the next request gets `consent_required`.
 - The return-URL handler for 3LO (`CompleteResourceTokenAuth`, CC-6) is outside this stream; the app calls it
   through `AgentClient.completeConnect(params)` when the user lands back on the return URL.
+  **AgentCore (2026-10-28, issue #6):** the runtime does the binding call itself. AgentCore returns the browser to
+  the return URL with no query parameters, so the app keeps `session_uri` from `consent_required` (this tab,
+  sessionStorage, 10 minutes) and, back on the return URL, sends `{"session_id": ..., "action": "complete",
+  "session_uri": ...}`. An expired session (`error` with code `session_expired`, proposed; today the message
+  "Invalid or expired session") makes the app start `connect` again, once. On AgentCore the app also sends the
+  conversation id as `X-Amzn-Bedrock-AgentCore-Runtime-Session-Id`.
 - `connect` should confirm the held vault token still works, not just that one exists: a vault token survives
   "Revoke agent access" until it expires. The dev agent forces a refresh (refused once the app has revoked the
   OAuth consent) and, on failure, drops the token and returns `consent_required`. It does not call the database
