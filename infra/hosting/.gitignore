@@ -1,0 +1,4 @@
+node_modules/
+cdk.out/
+# Context lookups can cache account ids; this repo is public.
+cdk.context.json
