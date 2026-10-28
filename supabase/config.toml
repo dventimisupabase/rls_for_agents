@@ -157,16 +157,21 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-# Locally the AR app (:3000). OAuth consent goes to Site URL + /oauth/consent, and a browser session is per
-# origin, so connecting an agent from the arena (:3001) needs Site URL at :3001: scripts/start-stack.sh
-# --arena-consent (one app's consent works at a time; REPORT_04, "Arena"). The arena's other local auth settings
-# (code-only emails, redirect URLs, resend interval) come from scripts/start-stack.sh --arena, so this file keeps
-# the hosted values and is safe to push to stage.
-site_url = "http://localhost:3000"
+# Stage: the hosted AR app (D3, infra/hosting), so OAuth consent (Site URL + /oauth/consent) is served there.
+# This file holds the stage values and is safe to push to stage. Local stacks override the auth URLs in
+# scripts/start-stack.sh: Site URL :3000 (the AR app), or :3001 with --arena-consent, since a browser session is
+# per origin and one app's consent works at a time (REPORT_04, "Arena"). The arena's other local auth settings
+# (code-only emails, resend interval) come from start-stack.sh --arena too.
+site_url = "https://main.d1ufkifoff9zqu.amplifyapp.com"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = []
+# Stage: both hosted apps, plus the AR app on localhost for running it locally against stage.
+additional_redirect_urls = [
+  "https://main.d1ufkifoff9zqu.amplifyapp.com/**",
+  "https://main.drcy3ro56axfk.amplifyapp.com/**",
+  "http://localhost:3000/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
