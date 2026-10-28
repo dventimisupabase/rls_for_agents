@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { agent, getJwt, openConsent } from "../agent.ts";
-import { connectAgent, revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
+import { connectAgent, finishConnect, revokeBoth, type AgentGrant, type Half } from "../lib/access.ts";
 import { timeAgo } from "@ar/shared/data/format.ts";
 import { ErrorBox, PageHeader, Pill, useAsync } from "../lib/ui.tsx";
 import { sb } from "../supabase.ts";
@@ -14,6 +14,13 @@ async function myAccess(): Promise<AgentGrant[]> {
   if (!env.ok) throw new Error(env.reason ?? "unavailable");
   return env.data!.grants;
 }
+
+// One automatic reconnect after an expired AgentCore session, kept in this tab across the consent round trip.
+const RETRIED = "agentcore.reconnected";
+const retriedFlag = {
+  get: () => sessionStorage.getItem(RETRIED) === "1",
+  set: (v: boolean) => (v ? sessionStorage.setItem(RETRIED, "1") : sessionStorage.removeItem(RETRIED)),
+};
 
 const ERRORS: Record<string, string> = {
   access_denied: "You declined the connection.",
@@ -29,21 +36,21 @@ export function AgentAccess() {
   const [note, setNote] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [revoked, setRevoked] = useState<{ name: string; database: Half; oauth: Half } | null>(null);
 
-  // Back from the 3LO flow: AgentCore needs a binding call here (CC-6); the dev agent doesn't. Then confirm the
-  // connection the same way Connect does: a remembered consent skips the consent screen, so if no database grant
-  // backs it, connectAgent clears that consent and sends the user through the screen once more.
+  // Back from the 3LO flow. The dev agent marks the return with ?connected=1; AgentCore returns with no query
+  // parameters, so its adapter remembers the round trip (pendingConnect). finishConnect does the binding call
+  // (CC-6) and then confirms the connection the same way Connect does: a remembered consent skips the consent
+  // screen, so if no database grant backs it, connectAgent clears that consent and sends the user through once more.
   const returned = useRef(false);
   useEffect(() => {
     const err = params.get("agent_error");
-    if (params.get("connected") === "1" && !returned.current) {
+    if ((params.get("connected") === "1" || agent.pendingConnect?.()) && !returned.current) {
       returned.current = true;
       (async () => {
         const jwt = await getJwt();
         if (!jwt) return;
-        if (agent.completeConnect) await agent.completeConnect(params, jwt).catch((e) => setNote({ tone: "error", text: e.message }));
-        const r = await connectAgent(agent, sb.auth.oauth, jwt, myAccess);
+        const r = await finishConnect(agent, sb.auth.oauth, jwt, params, myAccess, retriedFlag);
         if (r.kind === "consent") return openConsent(r.url);
-        setNote((n) => n ?? (r.kind === "connected" ? { tone: "ok", text: "Agent connected." } : { tone: "error", text: r.message }));
+        setNote(r.kind === "connected" ? { tone: "ok", text: "Agent connected." } : { tone: "error", text: r.message });
         grants.reload();
       })();
     } else if (err) setNote({ tone: "error", text: ERRORS[err] ?? err });

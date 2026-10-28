@@ -92,3 +92,59 @@ describe("connectAgent", () => {
     expect(await connectAgent(s.agent, s.oauth, "jwt", s.grants)).toEqual({ kind: "error", message: "down" });
   });
 });
+
+import { finishConnect } from "./access.ts";
+import { AgentError } from "@ar/shared/agent/types.ts";
+
+// Back on the return URL: complete the 3LO (AgentCore), then confirm the connection like Connect does.
+describe("finishConnect", () => {
+  const stream = (evs: AgentEvent[]) => (async function* () { for (const e of evs) yield e; })();
+  function setup(complete: (() => Promise<void>) | undefined, replies: AgentEvent[][], retried = false) {
+    const calls: string[] = [];
+    const agent = {
+      connect: () => { calls.push("connect"); return stream(replies.shift() ?? []); },
+      completeConnect: complete && (async () => { calls.push("complete"); return complete(); }),
+    };
+    const oauth = { revokeGrant: async () => ({ data: null, error: null }) };
+    const grants = async () => [{ id: "g", client_id: "c1", client_name: null, active: true, granted_at: "", revoked_at: null }];
+    const flag = { v: retried, get() { return this.v; }, set(v: boolean) { this.v = v; } };
+    const run = () => finishConnect(agent, oauth, "jwt", new URLSearchParams(), grants, flag);
+    return { run, calls, flag };
+  }
+
+  it("completes, then confirms the connection", async () => {
+    const s = setup(async () => {}, [[{ type: "connected", client_id: "c1" }]]);
+    expect(await s.run()).toEqual({ kind: "connected" });
+    expect(s.calls).toEqual(["complete", "connect"]);
+  });
+
+  it("without a completion step (dev agent), just confirms", async () => {
+    const s = setup(undefined, [[{ type: "connected", client_id: "c1" }]]);
+    expect(await s.run()).toEqual({ kind: "connected" });
+  });
+
+  it("an expired session starts connect again, once", async () => {
+    const s = setup(async () => { throw new AgentError("session_expired", "Invalid or expired session"); }, [[{ type: "consent_required", url: "https://consent" }]]);
+    expect(await s.run()).toEqual({ kind: "consent", url: "https://consent" });
+    expect(s.flag.v).toBe(true);
+  });
+
+  it("a second expired session in a row stops with a message instead of looping", async () => {
+    const s = setup(async () => { throw new AgentError("session_expired", "Invalid or expired session"); }, [], true);
+    expect((await s.run()).kind).toBe("error");
+    expect(s.calls).toEqual(["complete"]);
+    expect(s.flag.v).toBe(false);
+  });
+
+  it("any other completion failure is reported, with no reconnect", async () => {
+    const s = setup(async () => { throw new AgentError("internal", "agent returned HTTP 500"); }, []);
+    expect(await s.run()).toEqual({ kind: "error", message: "agent returned HTTP 500" });
+    expect(s.calls).toEqual(["complete"]);
+  });
+
+  it("a success clears the retry flag", async () => {
+    const s = setup(async () => {}, [[{ type: "connected", client_id: "c1" }]], true);
+    await s.run();
+    expect(s.flag.v).toBe(false);
+  });
+});

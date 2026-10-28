@@ -38,8 +38,69 @@ describe("httpAgentClient", () => {
 });
 
 describe("agentCoreClient", () => {
-  it("is a stub until pack 03 provides the runtime details", async () => {
+  const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) }; };
+  function setup(replies: (object[] | Response)[], now = () => 1_000_000) {
+    const seen: { headers: Record<string, string>; body: Record<string, unknown> }[] = [];
+    const fetchFn = async (_u: string, init: RequestInit) => {
+      seen.push({ headers: init.headers as Record<string, string>, body: JSON.parse(init.body as string) });
+      const r = replies.shift() ?? [];
+      return r instanceof Response ? r : sse(r);
+    };
+    const store = memory();
+    return { seen, store, client: agentCoreClient("https://runtime.local/invocations", { fetchFn: fetchFn as typeof fetch, store, now }) };
+  }
+
+  it("is not configured without an invoke URL", async () => {
     const [e] = await collect(agentCoreClient().send("j", "s", "m"));
     expect(e).toMatchObject({ type: "error", code: "not_configured" });
+  });
+
+  it("sends the conversation id as the runtime session-id header", async () => {
+    const s = setup([[{ type: "done" }]]);
+    await collect(s.client.send("jwt-1", "s-1", "hello"));
+    expect(s.seen[0].headers["x-amzn-bedrock-agentcore-runtime-session-id"]).toBe("s-1");
+    expect(s.seen[0].headers.authorization).toBe("Bearer jwt-1");
+    expect(s.seen[0].body).toEqual({ session_id: "s-1", message: "hello" });
+  });
+
+  // AgentCore returns to the app with no query parameters, so session_uri is kept from consent_required.
+  it("keeps session_uri from consent_required, from a connect or a turn", async () => {
+    const s = setup([[{ type: "consent_required", url: "https://consent", session_uri: "urn:s1" }]]);
+    expect(s.client.pendingConnect!()).toBe(false);
+    expect(await collect(s.client.send("j", "s", "m"))).toEqual([{ type: "consent_required", url: "https://consent", session_uri: "urn:s1" }]);
+    expect(s.client.pendingConnect!()).toBe(true);
+  });
+
+  it("completeConnect sends complete with the kept session_uri, once", async () => {
+    const s = setup([[{ type: "consent_required", url: "u", session_uri: "urn:s1" }], [{ type: "connected", client_id: "c1" }, { type: "done" }]]);
+    await collect(s.client.connect("j", "s"));
+    await s.client.completeConnect!(new URLSearchParams(), "jwt-2");
+    expect(s.seen[1].body).toMatchObject({ action: "complete", session_uri: "urn:s1" });
+    expect(s.seen[1].headers.authorization).toBe("Bearer jwt-2");
+    expect(s.client.pendingConnect!()).toBe(false);
+  });
+
+  it("an expired session is session_expired, by code or by the runtime's message", async () => {
+    for (const ev of [{ type: "error", code: "session_expired", message: "x" }, { type: "error", code: "internal", message: "Invalid or expired session" }]) {
+      const s = setup([[{ type: "consent_required", url: "u", session_uri: "urn:s1" }], [ev]]);
+      await collect(s.client.connect("j", "s"));
+      await expect(s.client.completeConnect!(new URLSearchParams(), "j")).rejects.toMatchObject({ code: "session_expired" });
+      expect(s.client.pendingConnect!()).toBe(false);
+    }
+  });
+
+  it("other failures keep their code and message", async () => {
+    const s = setup([[{ type: "consent_required", url: "u", session_uri: "urn:s1" }], new Response("no", { status: 500 })]);
+    await collect(s.client.connect("j", "s"));
+    await expect(s.client.completeConnect!(new URLSearchParams(), "j")).rejects.toMatchObject({ code: "internal", message: "agent returned HTTP 500" });
+  });
+
+  it("forgets a session_uri after 10 minutes", async () => {
+    let t = 0;
+    const s = setup([[{ type: "consent_required", url: "u", session_uri: "urn:s1" }]], () => t);
+    await collect(s.client.connect("j", "s"));
+    t = 10 * 60_000 + 1;
+    expect(s.client.pendingConnect!()).toBe(false);
+    await expect(s.client.completeConnect!(new URLSearchParams(), "j")).rejects.toMatchObject({ code: "session_expired" });
   });
 });

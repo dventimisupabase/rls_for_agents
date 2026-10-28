@@ -61,3 +61,28 @@ export async function connectAgent(
   }
   return { kind: "error", message: "The agent could not be reconnected. Revoke access and try again." };
 }
+
+// Back on the 3LO return URL. AgentCore needs the binding call first (completeConnect, CC-6); the dev agent
+// doesn't. Then confirm like Connect does. An expired AgentCore session starts connect again, but only once in
+// a row (`retried`, kept in this tab), so a session that keeps expiring can't loop through the consent screen.
+export async function finishConnect(
+  agent: Parameters<typeof connectAgent>[0] & { completeConnect?(params: URLSearchParams, jwt: string): Promise<void> },
+  oauth: Parameters<typeof connectAgent>[1],
+  jwt: string,
+  params: URLSearchParams,
+  myGrants: () => Promise<AgentGrant[]>,
+  retried: { get(): boolean; set(v: boolean): void },
+): ReturnType<typeof connectAgent> {
+  try {
+    await agent.completeConnect?.(params, jwt);
+  } catch (e) {
+    if ((e as { code?: string }).code !== "session_expired") return { kind: "error", message: (e as Error).message };
+    if (retried.get()) { retried.set(false); return { kind: "error", message: "The connection took too long to finish. Try Connect agent again." }; }
+    retried.set(true);
+    const r = await connectAgent(agent, oauth, jwt, myGrants);
+    if (r.kind !== "consent") retried.set(false);
+    return r;
+  }
+  retried.set(false);
+  return connectAgent(agent, oauth, jwt, myGrants);
+}
