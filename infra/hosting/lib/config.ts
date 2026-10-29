@@ -30,10 +30,11 @@ export interface HostingProps {
 const REPOSITORY = "https://github.com/dventimisupabase/rls_for_agents";
 const TOKEN_SECRET = "arcopilot/amplify-github-token";
 
-// The arena's production build fails while legal text is a placeholder; stage builds it in stage mode.
+// The arena's production build fails while legal text is a placeholder, so both environments build it in stage
+// mode for now. Switch the arena environment to "build" once the approved text is in src/legal.ts.
 const PER_ENV: Record<EnvName, { branch: string; apps: AppSpec[] }> = {
   stage: { branch: "main", apps: [{ name: "ar-app", buildScript: "build" }, { name: "arena", buildScript: "build:stage" }] },
-  arena: { branch: "arena", apps: [{ name: "arena", buildScript: "build" }] },
+  arena: { branch: "arena", apps: [{ name: "arena", buildScript: "build:stage" }] },
 };
 
 // VITE_ values ship to the browser, so only a publishable key may go in. Legacy JWT keys carry their role.
