@@ -92,7 +92,12 @@ These settings live outside this stack:
   origins.
 - **On stage, only team members can sign in to the arena.** Stage sends code emails (`config.toml`,
   `supabase/templates`), but the built-in email sender delivers only to the org's team members, a few an hour. The
-  public arena signs in with GitHub instead (decided 2026-10-29, not built yet).
+  public arena signs in with GitHub instead (decided 2026-10-29): the arena environment builds with
+  `VITE_SIGNIN=github`.
+- **The arena project's auth isn't applied yet.** `scripts/arena-auth.sh push` sets its Site URL, redirect list and
+  GitHub provider (from `config.toml` plus the arena's values). It needs a GitHub OAuth App whose callback URL is
+  `https://<arena ref>.supabase.co/auth/v1/callback`, with its client id and secret in `~/.ar-copilot/arena.env`
+  (`ARENA_GITHUB_CLIENT_ID`, `ARENA_GITHUB_SECRET`), and the arena hosting stack deployed (or `ARENA_SITE_URL` set).
 - **The arena's legal text is a placeholder.** Both environments build the arena in stage mode, which lets the
   placeholder through the legal guard. Once the approved text is in `apps/arena/src/legal.ts` and
   `src/content/brief.ts`, switch the arena environment back to `build` in `lib/config.ts`.

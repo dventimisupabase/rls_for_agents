@@ -37,6 +37,12 @@ describe("hostingConfig", () => {
     expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["arena", "build:stage"]]);
   });
 
+  // The built-in email sender only mails the org's team, so the public arena signs in with GitHub.
+  it("the arena environment signs in with GitHub; stage keeps email codes", () => {
+    expect(hostingConfig("arena", inputs).appEnv.VITE_SIGNIN).toBe("github");
+    expect(hostingConfig("stage", inputs).appEnv.VITE_SIGNIN).toBeUndefined();
+  });
+
   it("refuses anything but a publishable key, since VITE_ values ship to the browser", () => {
     const serviceRole = `x.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.y`;
     for (const publishableKey of ["sb_secret_abc", serviceRole, ""]) {
