@@ -1,7 +1,8 @@
 # infra/hosting: Amplify Hosting for the front ends (D3)
 
-A CDK stack that hosts the static front ends on AWS Amplify Hosting, built from this repo on every push. Decided
-in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md` section 8.
+A CDK stack that hosts the static front ends on AWS Amplify Hosting, built from this repo: stage on every push to
+`main`, the arena on release. Decided in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md`
+section 8.
 
 | Environment | Stack | Branch | Apps | Supabase project |
 |---|---|---|---|---|
@@ -73,6 +74,15 @@ every push to the branch builds, through a push webhook Amplify adds to the repo
 ```sh
 aws amplify start-job --app-id <app id> --branch-name main --job-type RELEASE
 ```
+
+**The arena is released, not built on push.** Its branch, `arena`, only ever gets commits `main` already has, and
+Amplify doesn't build a pushed commit it has already seen (pushing `arena` to the commit `main` had just built started
+nothing, and neither did redelivering that push). So release it on purpose:
+```sh
+AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh arena release
+```
+This fast-forwards `arena` to `main` (it refuses if `arena` has a commit `main` doesn't), builds that commit, waits
+for the build, and checks the hosted bundle calls the arena project.
 
 ## After the first deploy
 
