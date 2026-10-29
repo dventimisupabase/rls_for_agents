@@ -6,7 +6,7 @@ in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md` sect
 | Environment | Stack | Branch | Apps | Supabase project |
 |---|---|---|---|---|
 | stage | `Hosting-arcopilot-stage` | `main` | `ar-app`, `arena` (built with `build:stage`) | stage |
-| arena | `Hosting-arcopilot-arena` | `arena` | `arena` (production build, legal guard on) | arena |
+| arena (not deployed yet) | `Hosting-arcopilot-arena` | `arena` | `arena` (production build, legal guard on) | arena |
 
 Each front end is its own Amplify app, built from its folder in the `apps/` npm workspace on Node 24. The apps are
 static (`WEB`), so they need no IAM service role. There are no PR previews: the repo is public, so a preview
