@@ -93,7 +93,7 @@ Proposal only; nothing in sections 4 or 5 was edited. Implemented on stage and d
   a prompt-injected agent with that key could forge or hide I4 evidence (pushback from pack 03). Working
   proposal, to settle at the contract freeze: a trusted forwarder calls `record_runtime_tool_calls` from the
   runtime's per-session counts in its logs, and whatever invokes the runtime for the user (for example the
-  Edge Function proxy, which runs no model) calls `record_prompt`. Pack 03 to write it up as CC-9. The
+  Edge Function proxy, which runs no model) calls `record_prompt`. Built as CC-9 (2026-10-29). The
   functions themselves are unchanged and stay `service_role` only.
 - MCP adapter internal: `audit_rejected_call(tool, args, error)` and `report_canary_hit(tool)`.
 
@@ -151,6 +151,26 @@ runtime's session-id rules (pack 03 to confirm the header name and length rules)
 - When a tool result's `data` is a list, the runtime gives the model a plain `"N rows returned."` text block next to
   the unchanged envelope. Without it, Claude Sonnet 5.5 reported 21 rows as 20 (twice), which breaks stage beat 1
   (Alice and Bob compare counts). With it, three runs out of three matched the database.
+
+## CC-9 (2026-10-29): the agent proxy records prompts (the trusted path of the CC-7 supersession)
+
+Reserved for pack 03's write-up; built by David's session (packs 02 and 04) so the scoreboard has numbers, and open
+for pack 03 to amend (issue #4). Nothing in sections 4 or 5 changes.
+
+- **Who records.** The agent proxy (`supabase/functions/agent`), which runs no model, records each message it
+  forwards to the runtime. The runtime never holds `service_role` (hard rule 2).
+- **How.** `public.record_prompt(user, session, prompt)` calls `ctf.record_prompt` (PostgREST exposes only `public`).
+  Both are `service_role` only (pgTAP 11 and 16). The proxy gets the user id from Auth (`/auth/v1/user` with the
+  caller's bearer), never from the token's own claims, since the function has `verify_jwt` off. It records nothing
+  for a token Auth refuses or for an agent token (`client_id`).
+- **What counts as one prompt.** Every request with a `message` that the proxy forwards to the runtime. A message
+  sent again (after consent, `limit_reached` or `interrupted`) counts again. `connect`, `complete`, refusals
+  (401, 400, `not_configured`) and turns refused by the kill switch (CC-10) are not recorded.
+- **Never breaks a turn.** The record runs alongside the runtime call and is awaited (up to 2 s) before the reply
+  streams back. If it fails or is slow, the turn goes on unchanged and the proxy logs the HTTP status only (never
+  the prompt or the key).
+- **Still pack 03's:** `record_runtime_tool_calls` (I4's per-session counts from the runtime's logs, by a trusted
+  forwarder), and any limit on message length (the proxy stores the text as sent).
 
 ## CC-10 (from pack 04, 2026-10-27): kill-switch status before a turn, and limit details (proposal for pack 03)
 
