@@ -50,9 +50,11 @@ type Props = {
   errorText?: Partial<Record<string, string>>;
   placeholder?: string;
   title?: string;
+  /** The kill switch is on (CC-10): this message is shown and Send is off. Presentation only; the proxy refuses too. */
+  paused?: string | null;
 };
 
-export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, placeholder = "Ask about invoices, payments or customers", title = "Copilot" }: Props) {
+export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, placeholder = "Ask about invoices, payments or customers", title = "Copilot", paused }: Props) {
   const [items, setItems] = useState<Transcript>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,7 +71,7 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, plac
   const send = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text || busy) return;
+    if (!text || busy || paused) return;
     setInput("");
     await sendText(text);
   };
@@ -124,7 +126,7 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, plac
               {it.text}
               {it.url && <button type="button" className="primary" onClick={() => onConsent(it.url!, lastPrompt.current)}>Connect agent</button>}
               {it.retry && i === items.length - 1 && lastPrompt.current && (
-                <button type="button" className="primary" disabled={busy} onClick={() => sendText(lastPrompt.current!)}>Send again</button>
+                <button type="button" className="primary" disabled={busy || !!paused} onClick={() => sendText(lastPrompt.current!)}>Send again</button>
               )}
             </div>
           );
@@ -132,10 +134,11 @@ export function CopilotPanel({ agent, getJwt, onConsent, resume, errorText, plac
         {busy && <div className="msg msg-thinking">Working…</div>}
         <div ref={end} />
       </div>
+      {paused && <p className="notice copilot-paused" role="status" data-testid="paused">{paused}</p>}
       <form className="copilot-input" onSubmit={send}>
         <textarea value={input} placeholder={placeholder} rows={2} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-        <button className="primary" disabled={busy || !input.trim()}>Send</button>
+        <button className="primary" disabled={busy || !input.trim() || !!paused}>Send</button>
       </form>
     </section>
   );

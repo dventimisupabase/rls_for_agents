@@ -165,6 +165,18 @@ the turn, but with about 150 players a paused arena still lets everyone type and
 lets the arena show the pause up front. It also lets the Edge Function proxy (CC-9) refuse without invoking the
 runtime.
 
+**Status (2026-10-29): parts 1 and 2 built on the Postgres path, by pack 02/04 (David's session).**
+- `ctf.arena_switch`, one row (migration `20261029220117_arena_switch.sql`), flipped from the dashboard. How to
+  flip it: `docs/ARENA_RUNBOOK.md`.
+- `public.arena_status()` returns `{ paused, message? }`, for humans only (pgTAP 15).
+- The agent proxy reads the switch with the caller's JWT before every request (a read of up to 1 s). While it's
+  on, it answers with an `error/paused` stream (HTTP 200) carrying the operator's message, and never invokes the
+  runtime. If the read fails or is slow, the request goes through.
+- The arena reads the switch when the play screen opens, every 30 s, and when the tab comes back into view. While
+  paused it shows the message and turns Send off.
+- Still open with pack 03: does the runtime read the switch too? Today only the proxy enforces it, so a caller
+  with the invoke URL and a valid JWT bypasses it. Part 3 (limit details) is untouched.
+
 **Proposal.**
 1. **Where the switch lives.** One row in Postgres: `ctf.arena_switch(paused boolean, message text, changed_at,
    changed_by)`, flipped by a human from a phone in the Supabase dashboard's table editor, or with one SQL

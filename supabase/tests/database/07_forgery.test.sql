@@ -9,7 +9,7 @@ select is(
   (select array_agg(f order by f) from (
      select p.proname::text collate "C" as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('authenticated', p.oid, 'execute')) x),
-  array['ar_aging', 'audit_rejected_call', 'decide_pending_action', 'draft_dunning_email', 'get_customer', 'get_invoice', 'grant_agent',
+  array['ar_aging', 'arena_status', 'audit_rejected_call', 'decide_pending_action', 'draft_dunning_email', 'get_customer', 'get_invoice', 'grant_agent',
         'list_customer_contacts', 'list_overdue_invoices', 'list_pending_actions', 'mark_invoice_paid', 'my_agent_access', 'my_agent_activity', 'propose_payment_match', 'provision_me',
         'report_canary_hit', 'revoke_agent', 'room_totals', 'search_payments', 'send_dunning_email', 'send_kestrel_payment', 'whoami']::text[] collate "C",
   'the sweep covers every public function authenticated can execute');
@@ -27,6 +27,7 @@ begin
   perform public.my_agent_access();
   perform public.my_agent_activity(gen_random_uuid());
   perform public.room_totals();
+  perform public.arena_status();
   perform public.send_kestrel_payment(1, 'FLAG{kst-forged-capture}');
   perform public.list_overdue_invoices(0);
   perform public.get_invoice('KST-2026-9042');

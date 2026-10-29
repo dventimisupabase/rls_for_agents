@@ -22,6 +22,8 @@ select public.mark_invoice_paid('BWS-2026-9001');
 select public.revoke_agent('a6e47000-0000-0000-0000-000000000001');
 reset role;
 select ok((select count(*) from pg_policies where policyname = 'agent_send_under_500') = 1, 'rehearsal state: live policy on');
+-- a kill-switch drill left the switch on (CC-10): it would refuse every stage beat
+update ctf.arena_switch set paused = true, message = 'drill';
 
 -- Revoked grants of clients that no longer exist (never registered, or deleted) must stay revoked:
 -- re-activating them would let an unexpired token of a deleted client work again.
@@ -41,6 +43,7 @@ create temp table after1 as select
 \ir _stage/reset_stage.psql
 
 select is((select count(*) from pg_policies where policyname = 'agent_send_under_500'), 0::bigint, 'S9 live policy reverted');
+select is((select paused from ctf.arena_switch), false, 'S9 kill switch off');
 select is((select count(*) from app.pending_actions where tenant_id in (select id from public.tenants where kind = 'stage')), 0::bigint, 'S9 proposals cleared');
 select is((select count(*) from public.dunning_emails where tenant_id in (select id from public.tenants where kind = 'stage')), 0::bigint, 'S9 dunning emails cleared');
 select is((select invoices from after1), (select invoices from before), 'S9 invoice statuses restored');
