@@ -13,6 +13,20 @@ local project holds 5432x). The stage database password and seed password live i
 `psql <session pooler> -c "set app.seed_password = ..." -f supabase/seed/seed.sql` (2.5 s; the invoice digest
 `06564b28...` matches the local seed exactly); `supabase functions deploy mcp`.
 
+**Arena bring-up (2026-10-29, partial).** Project `ar-copilot-arena`, same org and region as stage. Its ref and every
+arena secret (database, seed and `grafana_reader` passwords, canary salt, pooler host) are in `~/.ar-copilot/arena.env`.
+The repo stays linked to stage (`scripts/reset-stage.sh` reads the link), so every arena command names the project:
+`supabase db push --db-url <arena session pooler>` (20 migrations); one seed run in one transaction with
+`app.seed_password` and `app.canary_salt` set (3 tenants, 10,680 invoices, 20 canaries, none matching the public
+default-salt flags); `alter role grafana_reader with password ...` (logs in, reads `ctf.scoreboard_totals`, refused
+`public.invoices`); `supabase functions deploy mcp|agent --project-ref <arena ref>` (no bearer 401; `agent` 503 until it
+has an invoke URL). Matches stage on cron jobs (`ctf-score` every 5 s, running), login roles, the realtime table,
+extensions and database settings. `scripts/test-db.sh --db-url <arena pooler>`: 237/237, and the arena was back at its
+post-seed counts afterwards (no events, audit rows or grants). **Still to do:** auth config
+(`scripts/arena-auth.sh push`: needs the GitHub OAuth App and the arena hosting stack); the `ar-copilot-agent` OAuth
+client (needs the OAuth server from that push and the arena AgentCore callback URL from pack 03); `AGENTCORE_INVOKE_URL`
+for the arena runtime; the Slack webhook in Vault (`ctf_slack_webhook_url`, not set on stage either).
+
 ## Status
 
 | ID | Criterion | Status | Evidence |
@@ -218,4 +232,4 @@ local project holds 5432x). The stage database password and seed password live i
 - **Classifier in production:** run `scripts/classify-prompts.ts --watch` on the trusted AWS side during the arena (pack 03).
 - **Pack 03/04:** replace the agent client's placeholder redirect with the AgentCore callback URL; build the consent page
   (it calls `grant_agent` after approval); the runtime calls `ctf.record_prompt` and `ctf.record_runtime_tool_calls` (I4).
-- **Arena project:** create closer to Nov 6, seeded with its own canary salt and seed password.
+- **Arena project:** created and seeded 2026-10-29 with its own canary salt and seed password; see "Arena bring-up" above for what is left.
