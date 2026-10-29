@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # D3: Amplify Hosting for one environment, in one command. See infra/hosting/README.md.
 #   scripts/deploy-hosting.sh stage [synth|diff|deploy]   (default: diff)
+#   scripts/deploy-hosting.sh stage urls                  print where the apps are deployed (scripts/hosting-urls.sh)
 # Reads <ENV>_REF from ~/.ar-copilot/<env>.env and looks up the project's publishable key with the Supabase CLI,
 # so no project value is committed. Optional: AGENT_MODE, AGENT_URL. AWS credentials from AWS_PROFILE.
 set -euo pipefail
@@ -8,7 +9,8 @@ cd "$(dirname "$0")/.."
 env_name="${1:?usage: deploy-hosting.sh stage|arena [synth|diff|deploy]}"
 action="${2:-diff}"
 case "$env_name" in stage|arena) ;; *) echo "env must be stage or arena" >&2; exit 2 ;; esac
-case "$action" in synth|diff|deploy) ;; *) echo "action must be synth, diff or deploy" >&2; exit 2 ;; esac
+case "$action" in synth|diff|deploy|urls) ;; *) echo "action must be synth, diff, deploy or urls" >&2; exit 2 ;; esac
+[ "$action" = urls ] && exec scripts/hosting-urls.sh "$env_name"
 
 env_file="$HOME/.ar-copilot/$env_name.env"
 [ -f "$env_file" ] || { echo "missing $env_file" >&2; exit 1; }

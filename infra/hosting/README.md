@@ -57,6 +57,7 @@ would build and serve a fork's PR on our Amplify domain. Changes reach stage by 
 ```sh
 AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage diff     # what would change (read-only)
 AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage deploy
+AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage urls     # where the apps are deployed (live stack outputs)
 ```
 
 The script reads `STAGE_REF` from `~/.ar-copilot/stage.env` (or `ARENA_REF` from `arena.env`) and looks up the
