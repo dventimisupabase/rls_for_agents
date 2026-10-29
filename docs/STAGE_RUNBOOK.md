@@ -10,7 +10,7 @@ Secrets and the project ref live in `~/.ar-copilot/stage.env`, never in this rep
    set -a; source ~/.ar-copilot/stage.env; set +a
    scripts/reset-stage.sh
    ```
-   This drops the live $500 policy, removes proposals and dunning emails, restores invoice statuses and
+   This drops the live $500 policy, turns the kill switch off (`docs/ARENA_RUNBOOK.md`), removes proposals and dunning emails, restores invoice statuses and
    payment matches, and gives Alice and Bob a fresh agent grant (registered clients only; the revoked grant
    and its activity stay in history on the Agent access page). It cannot restore OAuth consents, and beat 5
    revoked Alice's. Last, it prints the day's beat 1 counts (`beat 1 today (more than a year overdue): Alice N,

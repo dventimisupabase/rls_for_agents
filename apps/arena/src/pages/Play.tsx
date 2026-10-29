@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { CopilotPanel } from "@ar/shared/agent/CopilotPanel.tsx";
 import { agent, getJwt } from "../agent.ts";
+import { PAUSE_POLL_MS, arenaPause } from "../lib/pause.ts";
 import { holdPrompt, takePrompt } from "../lib/pending.ts";
+import { sb } from "../supabase.ts";
 import { usePlayer } from "../lib/usePlayer.ts";
 import { Attempts } from "./Attempts.tsx";
 import { YourData } from "./YourData.tsx";
@@ -67,9 +69,25 @@ function useReturn() {
   return state;
 }
 
+// The kill switch (CC-10): read when the play screen opens, every 30 s, and when the tab comes back into view.
+function usePause(on: boolean): string | null {
+  const [paused, setPaused] = useState<string | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    let live = true;
+    const read = () => { if (document.visibilityState === "visible") arenaPause(sb).then((p) => { if (live) setPaused(p); }); };
+    read();
+    const timer = setInterval(read, PAUSE_POLL_MS);
+    document.addEventListener("visibilitychange", read);
+    return () => { live = false; clearInterval(timer); document.removeEventListener("visibilitychange", read); };
+  }, [on]);
+  return paused;
+}
+
 export function Play() {
   const { player, error, retry } = usePlayer();
   const back = useReturn();
+  const paused = usePause(!!player);
   const [tab, setTab] = useState<"copilot" | "data" | "attempts">("copilot");
 
   return (
@@ -97,7 +115,7 @@ export function Play() {
           {/* Both stay mounted, so switching tabs keeps the conversation. */}
           <div className="tab-body" hidden={tab !== "copilot"}>
             <CopilotPanel agent={agent} getJwt={getJwt} onConsent={openConsent} resume={back.resume} errorText={ARENA_ERRORS}
-              title="Your copilot" placeholder="Ask your copilot anything" />
+              title="Your copilot" placeholder="Ask your copilot anything" paused={paused} />
           </div>
           <div className="tab-body" hidden={tab !== "data"}><YourData /></div>
           <div className="tab-body" hidden={tab !== "attempts"}><Attempts active={tab === "attempts"} /></div>

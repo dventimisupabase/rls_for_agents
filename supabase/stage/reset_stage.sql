@@ -7,6 +7,9 @@
 -- Beat 4: revert the live $500 policy.
 drop policy if exists agent_send_under_500 on public.dunning_emails;
 
+-- The kill switch (CC-10) off: a drill that left it on would refuse every beat.
+update ctf.arena_switch set paused = false, message = null where paused or message is not null;
+
 -- Undo payment matches executed from approved proposals, then clear proposals (beat 3).
 update public.payments p set matched_invoice_id = null
 from app.pending_actions pa

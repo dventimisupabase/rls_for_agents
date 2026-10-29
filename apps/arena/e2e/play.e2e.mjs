@@ -174,6 +174,25 @@ try {
   assert.equal(await page.locator(".msg-user").count(), 0);
   ok("reload: nothing is re-sent");
 
+  // The kill switch up front (CC-10): flipped in the database, the play screen says so and Send is off.
+  sql("update ctf.arena_switch set paused = true, message = 'Back at 3:15. Nothing is lost.'");
+  try {
+    await page.reload();
+    await page.waitForSelector('[data-testid="paused"]');
+    assert.equal(await page.textContent('[data-testid="paused"]'), "Back at 3:15. Nothing is lost.");
+    await page.fill(".copilot-input textarea", "hello");
+    assert.ok(await page.isDisabled(".copilot-input button.primary"), "Send is off while paused");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/A_switch_paused_390.png` });
+  } finally {
+    sql("update ctf.arena_switch set paused = false, message = null");
+  }
+  await page.reload();
+  await page.waitForSelector(".copilot-input textarea");
+  await page.fill(".copilot-input textarea", "hello");
+  assert.ok(!(await page.isDisabled(".copilot-input button.primary")), "Send is back on");
+  assert.equal(await page.locator('[data-testid="paused"]').count(), 0);
+  ok("kill switch: the operator's message shows and Send is off; off again, Send is back");
+
   // Deny: a second player declines; back on the play screen with a plain explanation and nothing sent.
   const p2 = await (await browser.newContext({ ...devices["iPhone 14"] })).newPage();
   await p2.goto(APP);
