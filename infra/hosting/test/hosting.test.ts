@@ -30,10 +30,11 @@ describe("hostingConfig", () => {
     expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["ar-app", "build"], ["arena", "build:stage"]]);
   });
 
-  it("arena hosts only the arena, from the arena branch, with the production build", () => {
+  // Until the legal text arrives, the arena environment builds in stage mode too (placeholder text allowed).
+  it("arena hosts only the arena, from the arena branch, in stage mode for now", () => {
     const c = hostingConfig("arena", inputs);
     expect(c.branch).toBe("arena");
-    expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["arena", "build"]]);
+    expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["arena", "build:stage"]]);
   });
 
   it("refuses anything but a publishable key, since VITE_ values ship to the browser", () => {
@@ -131,7 +132,7 @@ describe("HostingStack", () => {
     t.resourceCountIs("AWS::Amplify::App", 1);
     t.hasResourceProperties("AWS::Amplify::App", { Name: "arcopilot-arena-arena" });
     t.hasResourceProperties("AWS::Amplify::Branch", { BranchName: "arena" });
-    expect(buildSpecOf(t, "arcopilot-arena-arena")).toContain("npm run build\n");
+    expect(buildSpecOf(t, "arcopilot-arena-arena")).toContain("npm run build:stage");
   });
 
   // The repo is public: a preview would build and serve a fork's PR on our Amplify domain. We don't need them.

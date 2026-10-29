@@ -6,7 +6,7 @@ in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md` sect
 | Environment | Stack | Branch | Apps | Supabase project |
 |---|---|---|---|---|
 | stage | `Hosting-arcopilot-stage` | `main` | `ar-app`, `arena` (built with `build:stage`) | stage |
-| arena (not deployed yet) | `Hosting-arcopilot-arena` | `arena` | `arena` (production build, legal guard on) | arena |
+| arena (not deployed yet) | `Hosting-arcopilot-arena` | `arena` | `arena` (built with `build:stage` until the legal text arrives) | arena |
 
 Each front end is its own Amplify app, built from its folder in the `apps/` npm workspace on Node 24. The apps are
 static (`WEB`), so they need no IAM service role. There are no PR previews: the repo is public, so a preview
@@ -92,8 +92,11 @@ These settings live outside this stack:
   origins.
 - **The arena can't sign in on stage yet.** Stage's email templates send links, and the arena expects a code (its
   local templates are set by `scripts/start-stack.sh --arena`).
-- **No custom domain yet.** The arena's short domain (for the QR code, P4) gets added once it exists.
-- **The `arena` branch doesn't exist yet.** Create it before deploying the arena environment.
+- **The arena's legal text is a placeholder.** Both environments build the arena in stage mode, which lets the
+  placeholder through the legal guard. Once the approved text is in `apps/arena/src/legal.ts` and
+  `src/content/brief.ts`, switch the arena environment back to `build` in `lib/config.ts`.
+- **No custom domain.** The arena stays on its `amplifyapp.com` URL (decided 2026-10-29), so the QR code (P4) points
+  there.
 - **A hosted app makes its project's URL public.** Every Supabase client ships its project URL in the browser
   bundle, so the stage ref becomes visible once the AR app is hosted. The repo still never names it.
 
