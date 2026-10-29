@@ -84,10 +84,11 @@ These settings live outside this stack:
 
 ## Known gaps
 
-- **The hosted copilot isn't live yet.** The apps call the agent proxy, which isn't deployed to the project until
-  pack 03 sends the runtime's invoke URL (then `supabase secrets set AGENTCORE_INVOKE_URL=...` and
-  `supabase functions deploy agent`). Until then the copilot shows a connection error. The local dev agent accepts
-  only the localhost origins.
+- **The hosted copilot isn't verified end to end yet.** The agent proxy is deployed on stage, and
+  `AGENTCORE_INVOKE_URL` is set to the runtime's `DEFAULT` endpoint (`supabase secrets set AGENTCORE_INVOKE_URL=...`,
+  then `supabase functions deploy agent`; the endpoint stays the same across runtime redeploys). A call from the
+  hosted app through the proxy to the runtime hasn't been run yet. The local dev agent accepts only the localhost
+  origins.
 - **The arena can't sign in on stage yet.** Stage's email templates send links, and the arena expects a code (its
   local templates are set by `scripts/start-stack.sh --arena`).
 - **No custom domain yet.** The arena's short domain (for the QR code, P4) gets added once it exists.
