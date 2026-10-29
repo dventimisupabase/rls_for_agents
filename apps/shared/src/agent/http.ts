@@ -22,11 +22,21 @@ function caller(url: string, fetchFn: typeof fetch, extraHeaders: (sessionId: st
       yield { type: "error", code, message: `agent returned HTTP ${res.status}` };
       return;
     }
-    for await (const data of sseEvents(res.body)) {
-      try { yield JSON.parse(data) as AgentEvent; } catch { /* ignore malformed event */ }
-    }
+    // A stream that stops before one of these (the connection to the runtime dropped) is a failed turn, not an
+    // answer: the proxy passes the body through and adds no error event of its own.
+    let ended = false;
+    try {
+      for await (const data of sseEvents(res.body)) {
+        let e: AgentEvent;
+        try { e = JSON.parse(data) as AgentEvent; } catch { continue; /* ignore malformed event */ }
+        ended = END.has(e.type);
+        yield e;
+      }
+    } catch { /* the read failed: same as an early end */ }
+    if (!ended && !signal?.aborted) yield { type: "error", code: "interrupted", message: "the agent's reply was cut off" };
   };
 }
+const END = new Set<AgentEvent["type"]>(["done", "error", "consent_required", "connected"]);
 
 export function httpAgentClient(url: string, fetchFn: typeof fetch = (...a) => fetch(...a)): AgentClient {
   const call = caller(url, fetchFn);
