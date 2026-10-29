@@ -35,7 +35,9 @@ cat > "$work/bin/curl" <<'STUB'
 # The page links one script; the script's text is STUB_BUNDLE.
 for a in "$@"; do last="$a"; done
 case "$last" in
-  */assets/*) printf '%s' "$STUB_BUNDLE" ;;
+  # A real bundle is large and has many lines: the match comes early and much more follows. A reader that stops at
+  # the first matching line (grep -q) makes the rest of the write fail (curl exits 23 or 56); fail the same way.
+  */assets/*) printf '%s\n' "$STUB_BUNDLE"; yes 'var x=1;' | head -n 200000 || exit 23 ;;
   *) echo '<html><script type="module" src="/assets/index-abc.js"></script></html>' ;;
 esac
 STUB
