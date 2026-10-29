@@ -2,6 +2,7 @@
 # D3: Amplify Hosting for one environment, in one command. See infra/hosting/README.md.
 #   scripts/deploy-hosting.sh stage [synth|diff|deploy]   (default: diff)
 #   scripts/deploy-hosting.sh stage urls                  print where the apps are deployed (scripts/hosting-urls.sh)
+#   scripts/deploy-hosting.sh arena release               fast-forward `arena` to `main` and build it (scripts/release-arena.sh)
 # Reads <ENV>_REF from ~/.ar-copilot/<env>.env and looks up the project's publishable key with the Supabase CLI,
 # so no project value is committed. Optional: AGENT_MODE, AGENT_URL. AWS credentials from AWS_PROFILE.
 set -euo pipefail
@@ -9,8 +10,12 @@ cd "$(dirname "$0")/.."
 env_name="${1:?usage: deploy-hosting.sh stage|arena [synth|diff|deploy]}"
 action="${2:-diff}"
 case "$env_name" in stage|arena) ;; *) echo "env must be stage or arena" >&2; exit 2 ;; esac
-case "$action" in synth|diff|deploy|urls) ;; *) echo "action must be synth, diff, deploy or urls" >&2; exit 2 ;; esac
+case "$action" in synth|diff|deploy|urls|release) ;; *) echo "action must be synth, diff, deploy, urls or release" >&2; exit 2 ;; esac
 [ "$action" = urls ] && exec scripts/hosting-urls.sh "$env_name"
+if [ "$action" = release ]; then
+  [ "$env_name" = arena ] || { echo "release is for the arena; stage builds on every push to main" >&2; exit 2; }
+  exec scripts/release-arena.sh
+fi
 
 env_file="$HOME/.ar-copilot/$env_name.env"
 [ -f "$env_file" ] || { echo "missing $env_file" >&2; exit 1; }

@@ -72,6 +72,7 @@ scripts/test-scorer.sh    # trusted scorer
 scripts/test-apps.sh      # front-end unit tests
 scripts/test-hosting-urls.sh  # the deployed-URLs script (stubbed aws, no AWS access needed)
 scripts/test-arena-auth.sh    # the arena project's auth config script (stubbed CLI, no network)
+scripts/test-release-arena.sh # the arena release script (throwaway git remote, stubbed aws and curl)
 scripts/e2e-apps.sh       # browser end-to-end (e2e-apps.sh copilot runs the five stage beats locally)
 scripts/eval.sh           # eval harness; --bedrock also runs Claude on Bedrock
 ```
