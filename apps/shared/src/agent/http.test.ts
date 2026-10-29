@@ -35,6 +35,30 @@ describe("httpAgentClient", () => {
     expect((await collect(httpAgentClient("http://a", fetchFn as typeof fetch).send("j", "s", "m")))[0])
       .toMatchObject({ type: "error", code: "unreachable" });
   });
+
+  it("a stream that ends before its last event is an interrupted error", async () => {
+    const fetchFn = async () => sse([{ type: "text", text: "Alice has" }]);
+    expect(await collect(httpAgentClient("http://a", fetchFn as typeof fetch).send("j", "s", "m"))).toEqual([
+      { type: "text", text: "Alice has" },
+      { type: "error", code: "interrupted", message: "the agent's reply was cut off" },
+    ]);
+  });
+
+  it("a stream that breaks mid-read is an interrupted error", async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(c) { c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "text", text: "Alice" })}\n\n`)); c.error(new TypeError("network error")); },
+    });
+    const fetchFn = async () => new Response(body, { status: 200 });
+    expect((await collect(httpAgentClient("http://a", fetchFn as typeof fetch).send("j", "s", "m"))).at(-1))
+      .toEqual({ type: "error", code: "interrupted", message: "the agent's reply was cut off" });
+  });
+
+  it("done, error, consent_required and connected each end a stream cleanly", async () => {
+    for (const last of [{ type: "done" }, { type: "error", code: "paused", message: "p" }, { type: "consent_required", url: "u" }, { type: "connected" }]) {
+      const fetchFn = async () => sse([last]);
+      expect(await collect(httpAgentClient("http://a", fetchFn as typeof fetch).connect("j", "s"))).toEqual([last]);
+    }
+  });
 });
 
 describe("agentCoreClient", () => {

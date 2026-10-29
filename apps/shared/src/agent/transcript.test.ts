@@ -44,7 +44,7 @@ describe("reduce", () => {
     expect(reduce([], { type: "error", code: "access_revoked", message: "m" })[0]).toMatchObject({ kind: "notice", tone: "error", code: "access_revoked" });
   });
   it("errors that pass on their own (paused, a limit, unreachable, a failed turn) offer to send the message again", () => {
-    for (const code of ["paused", "limit_reached", "unreachable", "internal"])
+    for (const code of ["paused", "limit_reached", "unreachable", "interrupted", "internal"])
       expect(reduce([], { type: "error", code, message: "m" })[0]).toMatchObject({ kind: "notice", retry: true });
     for (const code of ["access_revoked", "unauthorized", "not_configured"])
       expect(reduce([], { type: "error", code, message: "m" })[0]).not.toHaveProperty("retry");

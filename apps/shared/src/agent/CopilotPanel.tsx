@@ -14,6 +14,7 @@ const ERROR_TEXT: Record<string, string> = {
   unauthorized: "Your session couldn't be verified. Sign in again.",
   not_configured: "The agent isn't configured for this environment yet.",
   unreachable: "The agent can't be reached right now.",
+  interrupted: "The agent's reply was cut off. Send the message again.",
 };
 
 const newSession = () => crypto.randomUUID();
