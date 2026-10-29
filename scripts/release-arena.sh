@@ -68,8 +68,11 @@ done
 echo "build $job succeeded"
 
 # The bundle must call the arena project: a build with stage's (or no) Supabase URL would look fine and be wrong.
-js="$(curl -fsS "$url/" | grep -o '/assets/[^"]*\.js' | head -1)"
-if ! curl -fsS "$url$js" | grep -qF "https://$ref.supabase.co"; then
+# Fetched whole, then searched: piping curl into grep -q fails the pipe when grep stops at the first match.
+page="$(curl -fsS "$url/")"
+js="$(grep -o '/assets/[^"]*\.js' <<<"$page" | head -1)"
+bundle="$(curl -fsS "$url$js")"
+if ! grep -qF "https://$ref.supabase.co" <<<"$bundle"; then
   echo "the hosted bundle at $url doesn't call the arena project" | mask >&2
   exit 1
 fi
