@@ -90,8 +90,9 @@ These settings live outside this stack:
   then `supabase functions deploy agent`; the endpoint stays the same across runtime redeploys). A call from the
   hosted app through the proxy to the runtime hasn't been run yet. The local dev agent accepts only the localhost
   origins.
-- **The arena can't sign in on stage yet.** Stage's email templates send links, and the arena expects a code (its
-  local templates are set by `scripts/start-stack.sh --arena`).
+- **On stage, only team members can sign in to the arena.** Stage sends code emails (`config.toml`,
+  `supabase/templates`), but the built-in email sender delivers only to the org's team members, a few an hour. The
+  public arena signs in with GitHub instead (decided 2026-10-29, not built yet).
 - **The arena's legal text is a placeholder.** Both environments build the arena in stage mode, which lets the
   placeholder through the legal guard. Once the approved text is in `apps/arena/src/legal.ts` and
   `src/content/brief.ts`, switch the arena environment back to `build` in `lib/config.ts`.

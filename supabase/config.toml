@@ -160,8 +160,8 @@ enabled = true
 # Stage: the hosted AR app (D3, infra/hosting), so OAuth consent (Site URL + /oauth/consent) is served there.
 # This file holds the stage values and is safe to push to stage. Local stacks override the auth URLs in
 # scripts/start-stack.sh: Site URL :3000 (the AR app), or :3001 with --arena-consent, since a browser session is
-# per origin and one app's consent works at a time (REPORT_04, "Arena"). The arena's other local auth settings
-# (code-only emails, resend interval) come from start-stack.sh --arena too.
+# per origin and one app's consent works at a time (REPORT_04, "Arena"). The arena's local resend interval comes
+# from start-stack.sh --arena too.
 site_url = "https://main.d1ufkifoff9zqu.amplifyapp.com"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
@@ -254,13 +254,16 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Declared with the hosted subjects (and no content_path, so hosted bodies are untouched) so that
-# scripts/start-stack.sh --arena can override them locally with the arena's code-only templates.
+# The arena signs in with a code, not a link (supabase/templates). A new player gets the confirmation email, a
+# returning one the magic-link email, so both send the code. The AR app signs in with a password and sends no
+# email, so stage can use these too (2026-10-29).
 [auth.email.template.confirmation]
-subject = "Confirm your email address"
+subject = "Your Kestrel Freight arena code"
+content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.magic_link]
-subject = "Your sign-in link"
+subject = "Your Kestrel Freight arena code"
+content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
