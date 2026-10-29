@@ -75,14 +75,15 @@ every push to the branch builds, through a push webhook Amplify adds to the repo
 aws amplify start-job --app-id <app id> --branch-name main --job-type RELEASE
 ```
 
-**The arena is released, not built on push.** Its branch, `arena`, only ever gets commits `main` already has, and
-Amplify doesn't build a pushed commit it has already seen (pushing `arena` to the commit `main` had just built started
-nothing, and neither did redelivering that push). So release it on purpose:
+**The arena is released on purpose.** Its branch, `arena`, only ever gets commits `main` already has, and a push to
+it doesn't reliably build: the first push to a commit `main` had just built started nothing (nor did redelivering
+it), while a later one (2026-10-29) did. So release it with:
 ```sh
 AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh arena release
 ```
-This fast-forwards `arena` to `main` (it refuses if `arena` has a commit `main` doesn't), builds that commit, waits
-for the build, and checks the hosted bundle calls the arena project.
+This fast-forwards `arena` to `main` (it refuses if `arena` has a commit `main` doesn't), builds that commit (or, if
+the push started a build of it, waits on that one; while another build holds the branch, it retries), waits for the
+build, and checks the hosted bundle calls the arena project.
 
 ## After the first deploy
 

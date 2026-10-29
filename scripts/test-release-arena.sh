@@ -11,11 +11,21 @@ mkdir -p "$work/bin" "$work/env"
 
 cat > "$work/bin/aws" <<'STUB'
 #!/usr/bin/env bash
-# Records its arguments; answers list-apps, start-job and get-job like Amplify.
+# Records its arguments; answers list-apps, list-jobs, start-job and get-job like Amplify. STUB_JOBS is what
+# list-jobs returns; STUB_START_REFUSALS (a file holding a number) makes start-job refuse that many times, as
+# Amplify does while another job on the branch is pending or running.
 echo "$*" >> "$STUB_LOG"
 case "$*" in
   *"amplify list-apps"*) echo '{"apps":[{"name":"arcopilot-stage-arena","appId":"stageapp"},{"name":"arcopilot-arena-arena","appId":"arenaapp","defaultDomain":"arenaapp.amplifyapp.com"}]}' ;;
-  *"amplify start-job"*) echo '{"jobSummary":{"jobId":"7","status":"PENDING"}}' ;;
+  *"amplify list-jobs"*) [ -n "${STUB_JOBS:-}" ] && echo "$STUB_JOBS" || echo '{"jobSummaries":[]}' ;;
+  *"amplify start-job"*)
+    n="$(cat "${STUB_START_REFUSALS:-/dev/null}" 2>/dev/null || true)"
+    if [ "${n:-0}" -gt 0 ]; then
+      echo $((n - 1)) > "$STUB_START_REFUSALS"
+      echo "An error occurred (LimitExceededException) when calling the StartJob operation: already have pending or running jobs" >&2
+      exit 254
+    fi
+    echo '{"jobSummary":{"jobId":"7","status":"PENDING"}}' ;;
   *"amplify get-job"*) echo "{\"job\":{\"summary\":{\"jobId\":\"7\",\"status\":\"${STUB_STATUS:-SUCCEED}\"}}}" ;;
   *) echo "unexpected aws call: $*" >&2; exit 1 ;;
 esac
@@ -89,5 +99,31 @@ has "$out" "FAILED"; check "build failed: says so" $?
 out="$(STUB_BUNDLE='createClient("https://stagerefxxxxxxxxxxxxx.supabase.co")' $script 2>&1)"; rc=$?
 [ $rc -ne 0 ]; check "wrong bundle: fails" $?
 has "$out" "arena project"; check "wrong bundle: says what's missing" $?
+
+# 6. The push started a build of that commit by itself: wait on it, don't start another.
+: > "$STUB_LOG"
+out="$(STUB_JOBS="{\"jobSummaries\":[{\"jobId\":\"4\",\"status\":\"RUNNING\",\"commitId\":\"$main_sha\"}]}" $script 2>&1)"; rc=$?
+check "push-started build: exits 0" $rc
+log="$(cat "$STUB_LOG")"
+! has "$log" "start-job"; check "push-started build: doesn't start another" $?
+has "$log" "get-job --app-id arenaapp --branch-name arena --job-id 4"; check "push-started build: waits on that job" $?
+
+# 7. A finished build of that commit doesn't count: start a new one.
+: > "$STUB_LOG"
+out="$(STUB_JOBS="{\"jobSummaries\":[{\"jobId\":\"4\",\"status\":\"SUCCEED\",\"commitId\":\"$main_sha\"}]}" $script 2>&1)"; rc=$?
+has "$(cat "$STUB_LOG")" "start-job"; check "finished build of that commit: starts a new one" $?
+
+# 8. Another job holds the branch (or the push's job appears just after we look): retry until it's free.
+: > "$STUB_LOG"
+echo 2 > "$work/refusals"
+out="$(STUB_START_REFUSALS="$work/refusals" $script 2>&1)"; rc=$?
+check "branch busy: exits 0 once it's free" $rc
+[ "$(grep -c "start-job" "$STUB_LOG")" -eq 3 ]; check "branch busy: tried three times" $?
+
+# 9. The branch never frees up: give up with a message.
+echo 999 > "$work/refusals"
+out="$(STUB_START_REFUSALS="$work/refusals" RELEASE_START_TRIES=3 $script 2>&1)"; rc=$?
+[ $rc -ne 0 ]; check "branch stuck: fails" $?
+has "$out" "busy"; check "branch stuck: says why" $?
 
 [ $fails -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
