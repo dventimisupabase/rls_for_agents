@@ -32,6 +32,24 @@ talk) and **arena** (the audience CTF).
 - `scripts/`: start the local stack, run each test suite, reset stage, run the local dev agent.
 - `docs/`: the context packs and the stage runbook (below).
 
+## Where it's deployed
+
+Only **stage** is deployed: one CloudFormation stack, `Hosting-arcopilot-stage` in us-west-2 (AWS account: the shared
+sandbox, profile `ar-sandbox`), hosting the AR app and a stage copy of the arena on Amplify, each built from `main`
+on every push. The agent proxy is the `agent` Edge Function on the stage Supabase project. The separate arena
+environment (stack `Hosting-arcopilot-arena`, branch `arena`) isn't deployed yet.
+
+To get the live URLs, read them from the stack instead of trusting a doc:
+
+```sh
+aws sso login --profile ar-sandbox      # if your session expired
+AWS_PROFILE=ar-sandbox scripts/hosting-urls.sh [stage|arena]
+```
+
+It prints the AR app and arena URLs (the stack's `ArAppUrl` and `ArenaUrl` outputs) and the agent proxy URL, which is
+derived from the project ref in `~/.ar-copilot/stage.env`. The copilot page is `<AR app URL>/agent`. Deploy details
+are in `infra/hosting/README.md`; running the stage beats is in `docs/STAGE_RUNBOOK.md`.
+
 ## Run it locally
 
 You need Docker (for the local Supabase stack), Node, and Deno. Scripts run the Supabase CLI through `npx` at the
@@ -52,6 +70,7 @@ scripts/test-db.sh        # pgTAP suite against the local stack
 scripts/test-mcp.sh       # MCP adapter and agent proxy tests
 scripts/test-scorer.sh    # trusted scorer
 scripts/test-apps.sh      # front-end unit tests
+scripts/test-hosting-urls.sh  # the deployed-URLs script (stubbed aws, no AWS access needed)
 scripts/e2e-apps.sh       # browser end-to-end (e2e-apps.sh copilot runs the five stage beats locally)
 scripts/eval.sh           # eval harness; --bedrock also runs Claude on Bedrock
 ```
