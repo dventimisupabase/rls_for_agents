@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 SUPABASE="${SUPABASE:-npx --yes supabase@2.122.0}"
 eval "$($SUPABASE status -o env 2>/dev/null | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET|DB_URL|MAILPIT_URL)=')"
 export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" JWT_SECRET DB_URL MAILPIT_URL
-# The arena tests read sign-in codes from Mailpit, which needs the arena's email templates (start-stack.sh --arena).
-if [[ " $* " == *" arena:"* || $# -eq 0 ]] && ! docker inspect supabase_auth_rls_for_agents --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -q "SUBJECTS_MAGIC_LINK=Your Kestrel Freight arena code"; then
+# The arena tests sign in again within seconds, which needs the 5 s resend interval from start-stack.sh --arena.
+if [[ " $* " == *" arena:"* || $# -eq 0 ]] && ! docker inspect supabase_auth_rls_for_agents --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -q "SMTP_MAX_FREQUENCY=5s"; then
   echo "arena tests need the stack started with scripts/start-stack.sh --arena (or --arena-consent for arena:play)" >&2; exit 1
 fi
 tests=("$@"); [ ${#tests[@]} -eq 0 ] && tests=(consent views copilot arena:signin arena:brief arena:play arena:p6 arena:level2)
