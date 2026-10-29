@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1";
-import { type Config, handleAgent, statusReader } from "./core.ts";
+import { type Config, handleAgent, promptRecorder, statusReader } from "./core.ts";
 
 const INVOKE = "https://runtime.example/123456789012/invocations";
 const SESSION_HEADER = "x-amzn-bedrock-agentcore-runtime-session-id";
@@ -153,4 +153,110 @@ Deno.test("statusReader: a refusal or an HTTP error reads as unknown (null)", as
     const read = statusReader("https://p", "k", (() => Promise.resolve(res)) as typeof fetch);
     assertEquals(await read("Bearer j"), null);
   }
+});
+
+// CC-9: the proxy records each message it forwards (record_prompt, service_role), in parallel with the runtime
+// call. Only forwarded turns: not connect or complete, not a refusal. A failing or slow record never touches the turn.
+type Rec = { auth: string; session: string; prompt: string };
+function recorder(impl: () => Promise<void> = () => Promise.resolve()) {
+  const seen: Rec[] = [];
+  const record = (auth: string, session: string, prompt: string) => { seen.push({ auth, session, prompt }); return impl(); };
+  return { seen, record };
+}
+
+Deno.test("records a forwarded message once, with the bearer, the session and the text", async () => {
+  const { fn } = upstream(() => sse('data: {"type":"done"}\n\n'));
+  const { seen, record } = recorder();
+  const res = await handleAgent(post({ session_id: "s-9", message: "show me Kestrel" }, { authorization: "Bearer alice-jwt" }),
+    { invokeUrl: INVOKE, fetch: fn, record });
+  assertEquals(res.status, 200);
+  assertEquals(seen, [{ auth: "Bearer alice-jwt", session: "s-9", prompt: "show me Kestrel" }]);
+});
+
+Deno.test("doesn't record connect, complete, refusals or a paused arena", async () => {
+  const cases: [Request, Partial<Config>][] = [
+    [post({ session_id: "s", action: "connect" }), {}],
+    [post({ session_id: "s", action: "complete", session_uri: "u" }), {}],
+    [post({ session_id: "s", message: "m" }, {}), {}],                      // no bearer: 401
+    [post({ message: "m" }), {}],                                           // no session: 400
+    [post({ session_id: "s", message: "m" }), { invokeUrl: undefined }],    // not configured: 503
+    [post({ session_id: "s", message: "m" }), { status: paused("p") }],     // kill switch
+  ];
+  for (const [req, over] of cases) {
+    const { fn } = upstream(() => sse(""));
+    const { seen, record } = recorder();
+    const res = await handleAgent(req, { invokeUrl: INVOKE, fetch: fn, record, ...over });
+    await res.body?.cancel();
+    assertEquals(seen.length, 0);
+  }
+});
+
+Deno.test("a failing or slow record leaves the turn unchanged", async () => {
+  for (const impl of [() => Promise.reject(new Error("db down")), () => new Promise<void>(() => {})]) {
+    const { fn } = upstream(() => sse('data: {"type":"text","text":"hi"}\n\ndata: {"type":"done"}\n\n'));
+    const { record } = recorder(impl);
+    const res = await handleAgent(post({ session_id: "s", message: "m" }), { invokeUrl: INVOKE, fetch: fn, record, recordTimeoutMs: 20 });
+    assertEquals(res.status, 200);
+    assertEquals(await res.text(), 'data: {"type":"text","text":"hi"}\n\ndata: {"type":"done"}\n\n');
+  }
+});
+
+Deno.test("the record and the runtime call run in parallel", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  let runtimeCalled = false;
+  const fn = (() => { runtimeCalled = true; release(); return Promise.resolve(sse("")); }) as typeof fetch;
+  // The record waits until the runtime has been called: in series this would time out instead.
+  const { seen, record } = recorder(() => gate);
+  const res = await handleAgent(post({ session_id: "s", message: "m" }), { invokeUrl: INVOKE, fetch: fn, record, recordTimeoutMs: 1000 });
+  await res.body?.cancel();
+  assert(runtimeCalled);
+  assertEquals(seen.length, 1);
+});
+
+// promptRecorder: who sent it comes from Auth (the proxy has verify_jwt off), never from the token's own claims.
+function api(routes: Record<string, () => Response>) {
+  const calls: Call[] = [];
+  const fn = ((input: string | URL | Request, init: RequestInit = {}) => {
+    calls.push({ url: String(input), init });
+    const path = new URL(String(input)).pathname;
+    return Promise.resolve((routes[path] ?? (() => new Response("no route", { status: 404 })))());
+  }) as typeof fetch;
+  return { fn, calls };
+}
+const jwt = (claims: Record<string, unknown>) => `Bearer h.${btoa(JSON.stringify(claims)).replace(/=+$/, "")}.s`;
+
+Deno.test("promptRecorder: checks the bearer with Auth, then records as service_role", async () => {
+  const { fn, calls } = api({
+    "/auth/v1/user": () => new Response(JSON.stringify({ id: "user-1" })),
+    "/rest/v1/rpc/record_prompt": () => new Response(null, { status: 204 }),
+  });
+  await promptRecorder("https://p.supabase.co", "pub-key", "service-key", fn)(jwt({ sub: "user-1" }), "s-1", "hello");
+  assertEquals(calls.map((c) => new URL(c.url).pathname), ["/auth/v1/user", "/rest/v1/rpc/record_prompt"]);
+  assertEquals(header(calls[0], "apikey"), "pub-key");
+  assertEquals(header(calls[0], "authorization"), jwt({ sub: "user-1" }));
+  assertEquals(header(calls[1], "apikey"), "service-key");
+  assertEquals(header(calls[1], "authorization"), "Bearer service-key");
+  assertEquals(JSON.parse(calls[1].init.body as string), { p_user: "user-1", p_session: "s-1", p_prompt: "hello" });
+});
+
+Deno.test("promptRecorder: records nothing for a bearer Auth refuses, or for an agent token", async () => {
+  const refused = api({ "/auth/v1/user": () => new Response("bad jwt", { status: 401 }) });
+  await promptRecorder("https://p", "k", "svc", refused.fn)(jwt({ sub: "forged" }), "s", "m");
+  assertEquals(refused.calls.length, 1);
+
+  const agent = api({ "/auth/v1/user": () => new Response(JSON.stringify({ id: "user-1" })) });
+  await promptRecorder("https://p", "k", "svc", agent.fn)(jwt({ sub: "user-1", client_id: "agent-client" }), "s", "m");
+  assertEquals(agent.calls.length, 1);
+});
+
+Deno.test("promptRecorder: a failed record throws without the prompt or the key in the message", async () => {
+  const { fn } = api({
+    "/auth/v1/user": () => new Response(JSON.stringify({ id: "user-1" })),
+    "/rest/v1/rpc/record_prompt": () => new Response("permission denied", { status: 403 }),
+  });
+  const err = await promptRecorder("https://p", "k", "svc-secret", fn)(jwt({ sub: "user-1" }), "s", "secret prompt text")
+    .then(() => null, (e: Error) => e);
+  assert(err);
+  assertFalse(err.message.includes("secret prompt text") || err.message.includes("svc-secret"), err.message);
 });
