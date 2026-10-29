@@ -32,9 +32,10 @@ const TOKEN_SECRET = "arcopilot/amplify-github-token";
 
 // The arena's production build fails while legal text is a placeholder, so both environments build it in stage
 // mode for now. Switch the arena environment to "build" once the approved text is in src/legal.ts.
-const PER_ENV: Record<EnvName, { branch: string; apps: AppSpec[] }> = {
+// The public arena signs in with GitHub: the built-in email sender only mails the org's team (stage keeps codes).
+const PER_ENV: Record<EnvName, { branch: string; apps: AppSpec[]; appEnv?: Record<string, string> }> = {
   stage: { branch: "main", apps: [{ name: "ar-app", buildScript: "build" }, { name: "arena", buildScript: "build:stage" }] },
-  arena: { branch: "arena", apps: [{ name: "arena", buildScript: "build:stage" }] },
+  arena: { branch: "arena", apps: [{ name: "arena", buildScript: "build:stage" }], appEnv: { VITE_SIGNIN: "github" } },
 };
 
 // VITE_ values ship to the browser, so only a publishable key may go in. Legacy JWT keys carry their role.
@@ -60,5 +61,6 @@ export function hostingConfig(envName: EnvName, inputs: Inputs): HostingProps {
   // invoke URL names the AWS account, so it stays a function secret instead of shipping in the bundle.
   const agentUrl = inputs.agentUrl ?? (appEnv.VITE_AGENT_MODE === "agentcore" ? `${inputs.supabaseUrl}/functions/v1/agent` : undefined);
   if (agentUrl) appEnv.VITE_AGENT_URL = agentUrl;
-  return { envName, repository: REPOSITORY, tokenSecretName: TOKEN_SECRET, appEnv, ...PER_ENV[envName] };
+  const { appEnv: envAppEnv, ...per } = PER_ENV[envName];
+  return { envName, repository: REPOSITORY, tokenSecretName: TOKEN_SECRET, appEnv: { ...appEnv, ...envAppEnv }, ...per };
 }
