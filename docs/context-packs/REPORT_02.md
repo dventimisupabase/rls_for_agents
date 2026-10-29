@@ -22,9 +22,9 @@ default-salt flags); `alter role grafana_reader with password ...` (logs in, rea
 `public.invoices`); `supabase functions deploy mcp|agent --project-ref <arena ref>` (no bearer 401; `agent` 503 until it
 has an invoke URL). Matches stage on cron jobs (`ctf-score` every 5 s, running), login roles, the realtime table,
 extensions and database settings. `scripts/test-db.sh --db-url <arena pooler>`: 237/237, and the arena was back at its
-post-seed counts afterwards (no events, audit rows or grants). **Still to do:** auth config
-(`scripts/arena-auth.sh push`: needs the GitHub OAuth App and the arena hosting stack); the `ar-copilot-agent` OAuth
-client (needs the OAuth server from that push and the arena AgentCore callback URL from pack 03); `AGENTCORE_INVOKE_URL`
+post-seed counts afterwards (no events, audit rows or grants). Later the same day: arena hosting deployed and auth
+pushed (`scripts/arena-auth.sh push`: Site URL and redirects on the hosted arena, GitHub sign-in, OAuth server on).
+**Still to do:** the `ar-copilot-agent` OAuth client (needs the arena AgentCore callback URL from pack 03); `AGENTCORE_INVOKE_URL`
 for the arena runtime; the Slack webhook in Vault (`ctf_slack_webhook_url`, not set on stage either).
 
 ## Status
