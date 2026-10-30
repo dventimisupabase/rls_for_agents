@@ -14,7 +14,7 @@ cat > "$work/bin/aws" <<'STUB'
 # Records its arguments; answers list-apps, list-jobs, start-job and get-job like Amplify. STUB_JOBS is what
 # list-jobs returns; STUB_START_REFUSALS (a file holding a number) makes start-job refuse that many times, as
 # Amplify does while another job on the branch is pending or running.
-echo "$*" >> "$STUB_LOG"
+echo "$* profile=${AWS_PROFILE:-}" >> "$STUB_LOG"
 case "$*" in
   *"amplify list-apps"*) echo '{"apps":[{"name":"arcopilot-stage-arena","appId":"stageapp"},{"name":"arcopilot-arena-arena","appId":"arenaapp","defaultDomain":"arenaapp.amplifyapp.com"}]}' ;;
   *"amplify list-jobs"*) [ -n "${STUB_JOBS:-}" ] && echo "$STUB_JOBS" || echo '{"jobSummaries":[]}' ;;
@@ -64,8 +64,9 @@ has() { grep -qF -- "$2" <<<"$1"; }
 
 # 1. arena behind main: fast-forward, build that commit, wait, check the bundle.
 : > "$STUB_LOG"
-out="$($script 2>&1)"; rc=$?
+out="$(env -u AWS_PROFILE $script 2>&1)"; rc=$?
 check "release: exits 0" $rc
+has "$(cat "$STUB_LOG")" "profile=ar-sandbox"; check "release: uses ar-sandbox when AWS_PROFILE is unset" $?
 [ "$(remote_arena)" = "$main_sha" ]; check "release: arena fast-forwarded to main" $?
 log="$(cat "$STUB_LOG")"
 has "$log" "amplify start-job --app-id arenaapp --branch-name arena --job-type RELEASE --commit-id $main_sha"

@@ -3,10 +3,11 @@
 # app (or waits on the build the push started), and checks the hosted bundle calls the arena project. Run it on
 # purpose: a push to `arena` doesn't reliably build (Amplify skipped one and built another).
 #   scripts/release-arena.sh          (or: scripts/deploy-hosting.sh arena release)
-# Refuses if `arena` has a commit `main` doesn't. AWS credentials from AWS_PROFILE; ARENA_REF from
+# Refuses if `arena` has a commit `main` doesn't. AWS credentials from AWS_PROFILE (default ar-sandbox); ARENA_REF from
 # ~/.ar-copilot/arena.env (override the folder with AR_ENV_DIR).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+export AWS_PROFILE="${AWS_PROFILE:-ar-sandbox}"
 repo="${RELEASE_REPO:-.}"
 remote="${RELEASE_REMOTE:-origin}"
 region="${AWS_REGION:-us-west-2}"

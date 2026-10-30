@@ -4,9 +4,11 @@
 #   scripts/deploy-hosting.sh stage urls                  print where the apps are deployed (scripts/hosting-urls.sh)
 #   scripts/deploy-hosting.sh arena release               fast-forward `arena` to `main` and build it (scripts/release-arena.sh)
 # Reads <ENV>_REF from ~/.ar-copilot/<env>.env and looks up the project's publishable key with the Supabase CLI,
-# so no project value is committed. Optional: AGENT_MODE, AGENT_URL. AWS credentials from AWS_PROFILE.
+# so no project value is committed. Optional: AGENT_MODE, AGENT_URL. AWS credentials from AWS_PROFILE (default ar-sandbox,
+# the shared sandbox).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+export AWS_PROFILE="${AWS_PROFILE:-ar-sandbox}"
 env_name="${1:?usage: deploy-hosting.sh stage|arena [synth|diff|deploy]}"
 action="${2:-diff}"
 case "$env_name" in stage|arena) ;; *) echo "env must be stage or arena" >&2; exit 2 ;; esac
