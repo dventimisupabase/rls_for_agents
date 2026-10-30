@@ -11,7 +11,7 @@ mkdir -p "$work/bin" "$work/env"
 cat > "$work/bin/aws" <<'STUB'
 #!/usr/bin/env bash
 # Stub: records its arguments, then either prints canned stack outputs or fails like an expired SSO token.
-echo "$*" >> "$STUB_LOG"
+echo "$* profile=${AWS_PROFILE:-}" >> "$STUB_LOG"
 if [ "${STUB_MODE:-ok}" = fail ]; then echo "Error when retrieving token from sso: Token has expired" >&2; exit 255; fi
 cat <<'JSON'
 [{"OutputKey":"ArAppUrl","OutputValue":"https://main.aaaa.amplifyapp.com"},
@@ -63,7 +63,21 @@ out="$(STUB_MODE=fail $script stage 2>&1)"; rc=$?
 [ $rc -ne 0 ]; check "aws failure: exits non-zero" $?
 has "$out" "aws sso login"; check "aws failure: suggests aws sso login" $?
 
-# 6. An unknown environment is refused.
+# 6. No AWS_PROFILE: the shared sandbox profile is used, and the failure message names it. A set one is kept.
+echo "STAGE_REF=testref" > "$work/env/stage.env"
+: > "$STUB_LOG"
+env -u AWS_PROFILE $script stage >/dev/null 2>&1
+has "$(cat "$STUB_LOG")" "profile=ar-sandbox"; check "no profile: uses ar-sandbox" $?
+: > "$STUB_LOG"
+AWS_PROFILE=other $script stage >/dev/null 2>&1
+has "$(cat "$STUB_LOG")" "profile=other"; check "profile set: keeps it" $?
+out="$(env -u AWS_PROFILE STUB_MODE=fail $script stage 2>&1)"
+has "$out" "with AWS profile ar-sandbox"; check "aws failure: names the profile it used" $?
+: > "$STUB_LOG"
+env -u AWS_PROFILE scripts/deploy-hosting.sh stage urls >/dev/null 2>&1
+has "$(cat "$STUB_LOG")" "profile=ar-sandbox"; check "deploy-hosting urls: works without AWS_PROFILE" $?
+
+# 7. An unknown environment is refused.
 out="$($script prod 2>&1)"; rc=$?
 [ $rc -eq 2 ]; check "bad env: exits 2" $?
 

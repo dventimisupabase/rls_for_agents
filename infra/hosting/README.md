@@ -56,10 +56,13 @@ would build and serve a fork's PR on our Amplify domain. Changes reach stage by 
 ## Deploy
 
 ```sh
-AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage diff     # what would change (read-only)
-AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage deploy
-AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh stage urls     # where the apps are deployed (live stack outputs)
+scripts/deploy-hosting.sh stage diff     # what would change (read-only)
+scripts/deploy-hosting.sh stage deploy
+scripts/deploy-hosting.sh stage urls     # where the apps are deployed (live stack outputs)
 ```
+
+The scripts use the AWS profile `ar-sandbox` (the shared sandbox) unless `AWS_PROFILE` is set. If its SSO session
+has expired, run `aws sso login --profile ar-sandbox`.
 
 The script reads `STAGE_REF` from `~/.ar-copilot/stage.env` (or `ARENA_REF` from `arena.env`) and looks up the
 project's publishable key with the Supabase CLI. No project value is committed. The stack refuses any key that
@@ -79,7 +82,7 @@ aws amplify start-job --app-id <app id> --branch-name main --job-type RELEASE
 it doesn't reliably build: the first push to a commit `main` had just built started nothing (nor did redelivering
 it), while a later one (2026-10-29) did. So release it with:
 ```sh
-AWS_PROFILE=ar-sandbox scripts/deploy-hosting.sh arena release
+scripts/deploy-hosting.sh arena release
 ```
 This fast-forwards `arena` to `main` (it refuses if `arena` has a commit `main` doesn't), builds that commit (or, if
 the push started a build of it, waits on that one; while another build holds the branch, it retries), waits for the
