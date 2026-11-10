@@ -10,6 +10,7 @@ const ALLOWED_RPC: Record<string, string> = {
   my_agent_access: "the player's own grants (auth.uid() only)",
   my_agent_activity: "the player's own grant's calls; another player's grant id is not_found (pgTAP 11)",
   room_totals: "five counts from ctf.scoreboard_totals, nothing else (pgTAP 10)",
+  leaderboard: "public board: rank, handle, flags and fooled per player, three totals; no email, prompt or id (pgTAP 11, 19)",
   arena_status: "the kill switch: paused and the operator's message, nothing else (pgTAP 15)",
   grant_agent: "consent: writes the player's own grant, returns an envelope",
   send_kestrel_payment: "level 2: writes the player's memo into Kestrel's feed; returns only an id and a count (pgTAP 11, 12)",
@@ -58,7 +59,14 @@ describe("P6: what the arena reads", () => {
     expect(arena.filter((f) => readFileSync(f, "utf8").includes("dataApi(")).map((f) => f.slice(ROOT.length))).toEqual(["src/lib/data.ts"]);
   });
 
-  it("has no Realtime channel (a broadcast could carry other players' text)", () => {
-    expect(arena.filter((f) => /\.channel\(/.test(readFileSync(f, "utf8")))).toEqual([]);
+  // A broadcast or a row change could carry other players' text, so the one channel allowed is the leaderboard's:
+  // its topic, its empty "changed" broadcast (pgTAP 19), and a handler that ignores the message and refetches.
+  it("has one Realtime channel: the leaderboard's, which ignores what it hears", () => {
+    const withChannel = arena.filter((f) => /\.channel\(/.test(readFileSync(f, "utf8"))).map((f) => f.slice(ROOT.length));
+    expect(withChannel).toEqual(["src/pages/Leaderboard.tsx"]);
+    const src = readFileSync(join(ROOT, "src/pages/Leaderboard.tsx"), "utf8");
+    expect([...src.matchAll(/\.channel\(/g)].length).toBe(1);
+    expect(src).toMatch(/\.channel\(TOPIC\)\.on\("broadcast", \{ event: "changed" \}, \(\) => soon\(\)\)/);
+    expect(arena.concat(shared).filter((f) => readFileSync(f, "utf8").includes("postgres_changes"))).toEqual([]);
   });
 });

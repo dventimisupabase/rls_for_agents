@@ -27,3 +27,19 @@ pause wording and a Send again button. The play screen also shows the message an
 
 Each project has its own switch: pausing the arena never pauses stage. `scripts/reset-stage.sh` turns stage's
 switch off, so a drill on stage can't break a beat.
+
+## Leaderboard
+
+`/leaderboard` on the arena's URL is public: open it on the projector with nobody signed in. A signed-in player also
+sees their own row marked (or below the list, if they're outside the top 10). Players reach it from **See the
+leaderboard** on the Attempts tab.
+
+- **What it shows:** the top 10 by distinct flags, then times fooled, then who reached that score first, with three
+  totals (players, times fooled, flags). Handles and counts only, from `public.leaderboard()`: no emails, no prompts,
+  no ids (pgTAP 19 and 11, `e2e/leaderboard.e2e.mjs`). A flag a player captures more than once counts once.
+- **Live:** a trigger on `ctf.events` and `ctf.players` sends an empty `changed` broadcast on the public Realtime topic
+  `arena:leaderboard`, and the page fetches the board again (about once a second at most). The **Live** tag shows the
+  channel is connected; if it says **Reconnecting**, the page still refreshes every 15 s. A failed broadcast never
+  fails scoring.
+- **Not the final word:** before a prize is decided, check each capture in `ctf.events` (kind `flag_captured`); every
+  capture already pages a person.

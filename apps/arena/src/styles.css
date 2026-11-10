@@ -312,3 +312,29 @@ a.primary { display: flex; align-items: center; justify-content: center; text-de
 .cell textarea.memo { width: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.05rem; resize: vertical; padding: 0.15rem 0; }
 .cell textarea.memo:focus { outline: none; }
 .level2 form { margin-top: 0.6rem; }
+
+/* Leaderboard: the same manifest sheet, wider, so it reads from the back of the room on a projector and still fits a
+   phone. Handles in stencil; the fresh row gets the cargo-tag orange for a moment. */
+.board-sheet { max-width: 30rem; }
+@media (min-width: 48rem) { .board-sheet { max-width: 60rem; font-size: clamp(1rem, 1.6vw, 1.5rem); } }
+.board-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.board-live { flex: none; border: var(--rule); padding: 0.1em 0.5em; font-size: 0.8rem; font-weight: 700; }
+.board-live.on { background: var(--ink); color: var(--sheet); }
+@media (min-width: 48rem) { .board-totals .room-flags { grid-column: auto; } .board-totals { grid-template-columns: 1fr 1fr 1fr; } .board-totals dd, .board-totals .room-flags dd { font-size: clamp(2.4rem, 5vw, 4.5rem); } }
+.board { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.board-row { display: grid; grid-template-columns: 1.8rem 1fr 3rem 3.4rem; gap: 0 0.6rem; align-items: baseline; padding: 0.45rem 0.3rem; border-bottom: 1px solid var(--ink); }
+.board-cols { font-size: 0.78rem; font-weight: 600; font-stretch: 85%; }
+.board-rank { font-weight: 800; }
+.board-handle { font-family: var(--stencil); font-weight: 800; font-size: 1.35em; line-height: 1.05; overflow-wrap: anywhere; }
+.board-you { font-family: "Archivo Variable", system-ui, sans-serif; font-size: 0.6em; font-weight: 600; }
+.board-n { text-align: right; font-family: var(--stencil); font-weight: 800; font-size: 1.5em; line-height: 1; }
+.board-cols .board-n, .board-cols .board-handle { font: inherit; }
+.board-me { background: rgb(255 255 255 / 0.45); outline: 2px solid var(--ink); outline-offset: -2px; }
+.board-mine { margin-top: 0.6rem; border-top: 3px double var(--ink); }
+@media (min-width: 48rem) { .board-row { grid-template-columns: 2.6rem 1fr 5rem 5rem; } .board-handle { font-size: 1.5em; } }
+.board-sheet .count a { color: var(--ink); }
+.board-fresh { background: var(--tag); }
+@media (prefers-reduced-motion: no-preference) {
+  .board-fresh { animation: board-fresh 3s ease-out forwards; }
+  @keyframes board-fresh { from { background: var(--tag); } to { background: transparent; } }
+}

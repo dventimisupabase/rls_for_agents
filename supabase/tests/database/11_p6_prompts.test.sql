@@ -45,9 +45,16 @@ create temp table seen (fn text, out text);
 grant insert, select on seen to authenticated;
 select pg_temp.act_as('9a7e0000-0000-0000-0000-00000000000a');
 insert into seen values ('provision_me', public.provision_me()::text), ('whoami', public.whoami()::text),
-  ('my_agent_access', public.my_agent_access()::text), ('room_totals', public.room_totals()::text);
+  ('my_agent_access', public.my_agent_access()::text), ('room_totals', public.room_totals()::text),
+  ('leaderboard', public.leaderboard(100)::text);
 insert into seen select 'my_agent_activity', public.my_agent_activity((x ->> 'id')::uuid)::text
   from jsonb_array_elements(public.my_agent_access() #> '{data,grants}') x;
+reset role;
+-- the projector (nobody signed in) reads the leaderboard too
+grant insert, select on seen to anon;
+select set_config('request.jwt.claims', '{"role": "anon"}', true);
+set local role anon;
+insert into seen values ('leaderboard(anon)', public.leaderboard(100)::text);
 reset role;
 -- B's grant id, as if guessed or leaked (A cannot list it; fetched here as postgres), gets nothing.
 create temp table b_grant as select id from app.agent_grants where user_id = '9a7e0000-0000-0000-0000-00000000000b';
