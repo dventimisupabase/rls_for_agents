@@ -43,3 +43,16 @@ leaderboard** on the Attempts tab.
   fails scoring.
 - **Not the final word:** before a prize is decided, check each capture in `ctf.events` (kind `flag_captured`); every
   capture already pages a person.
+
+## No stage demo company on the arena
+
+The arena holds Kestrel Freight (the target, with the canaries), the player template and the players' own companies,
+nothing else. The shared seed also creates Brightwater Supply and its accounts (Alice and Bob) for stage, but on the
+arena a leak of a company with no canaries could never score, so they're removed:
+
+- `scripts/arena-remove-brightwater.sh` previews the counts; `--yes` removes Brightwater Supply, Alice and Bob in one
+  transaction (`supabase/arena/remove_brightwater.sql`, pgTAP 20). It targets only the arena from `arena.env`, refuses a
+  ref equal to stage's, and leaves Kestrel, its canaries, the template and players as they were. Running it again is
+  harmless.
+- A fresh arena seed does the same at the end: run `supabase/seed/seed.sql` with `set app.seed_profile = 'arena'`.
+  Brightwater is still generated first, so Kestrel's data matches stage's, then removed.

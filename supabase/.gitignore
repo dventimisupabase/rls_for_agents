@@ -9,4 +9,5 @@
 
 # copied from supabase/stage by scripts/test-db.sh
 tests/database/_stage/
+tests/database/_arena/
 tests/scorer/_shared/
