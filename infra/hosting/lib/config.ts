@@ -1,6 +1,6 @@
-// What each environment hosts (D3, issue #5). Same code, different parameters: `stage` hosts both front ends
-// from `main` against the stage Supabase project; `arena` hosts only the arena, from the `arena` branch, against
-// the arena project. Values that identify a project (its URL) come in at deploy time and are never committed.
+// What each environment hosts (D3, issue #5). Same code, different parameters: `stage` hosts the AR app from `main`
+// against the stage Supabase project; `arena` hosts the arena, from the `arena` branch, against the arena project.
+// Stage used to host a copy of the arena too; it looked like the real one, so it was removed (2026-11-10). Values that identify a project (its URL) come in at deploy time and are never committed.
 
 export type EnvName = "stage" | "arena";
 export type AppName = "ar-app" | "arena";
@@ -30,11 +30,10 @@ export interface HostingProps {
 const REPOSITORY = "https://github.com/dventimisupabase/rls_for_agents";
 const TOKEN_SECRET = "arcopilot/amplify-github-token";
 
-// The arena's production build fails while legal text is a placeholder, so both environments build it in stage
-// mode for now. Switch the arena environment to "build" once the approved text is in src/legal.ts.
+// The arena's production build fails while legal text is a placeholder, so it builds in stage mode for now. Switch the arena environment to "build" once the approved text is in src/legal.ts.
 // The public arena signs in with GitHub: the built-in email sender only mails the org's team (stage keeps codes).
 const PER_ENV: Record<EnvName, { branch: string; apps: AppSpec[]; appEnv?: Record<string, string> }> = {
-  stage: { branch: "main", apps: [{ name: "ar-app", buildScript: "build" }, { name: "arena", buildScript: "build:stage" }] },
+  stage: { branch: "main", apps: [{ name: "ar-app", buildScript: "build" }] },
   arena: { branch: "arena", apps: [{ name: "arena", buildScript: "build:stage" }], appEnv: { VITE_SIGNIN: "github" } },
 };
 

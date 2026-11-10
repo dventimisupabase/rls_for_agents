@@ -166,10 +166,9 @@ site_url = "https://main.d1ufkifoff9zqu.amplifyapp.com"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Stage: both hosted apps, plus the AR app on localhost for running it locally against stage.
+# Stage: the hosted AR app, plus the AR app on localhost for running it locally against stage.
 additional_redirect_urls = [
   "https://main.d1ufkifoff9zqu.amplifyapp.com/**",
-  "https://main.drcy3ro56axfk.amplifyapp.com/**",
   "http://localhost:3000/**",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).

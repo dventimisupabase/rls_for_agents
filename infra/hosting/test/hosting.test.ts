@@ -24,10 +24,11 @@ const buildSpecOf = (t: Template, name: string): string => {
 };
 
 describe("hostingConfig", () => {
-  it("stage hosts both apps from main; the arena builds in stage mode", () => {
+  // Stage hosts only the AR app. A stage copy of the arena looked like the real one and was removed (2026-11-10).
+  it("stage hosts only the AR app, from main", () => {
     const c = hostingConfig("stage", inputs);
     expect(c.branch).toBe("main");
-    expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["ar-app", "build"], ["arena", "build:stage"]]);
+    expect(c.apps.map((a) => [a.name, a.buildScript])).toEqual([["ar-app", "build"]]);
   });
 
   // Until the legal text arrives, the arena environment builds in stage mode too (placeholder text allowed).
@@ -69,10 +70,10 @@ describe("hostingConfig", () => {
 });
 
 describe("HostingStack", () => {
-  it("stage: one Amplify app per front end, static (WEB), connected to this repo", () => {
-    const t = synth("stage");
-    t.resourceCountIs("AWS::Amplify::App", 2);
-    for (const name of ["arcopilot-stage-ar-app", "arcopilot-stage-arena"]) {
+  it("one Amplify app per front end, static (WEB), connected to this repo; stage has no arena", () => {
+    for (const [env, name] of [["stage", "arcopilot-stage-ar-app"], ["arena", "arcopilot-arena-arena"]] as const) {
+      const t = synth(env);
+      t.resourceCountIs("AWS::Amplify::App", 1);
       t.hasResourceProperties("AWS::Amplify::App", {
         Name: name,
         Platform: "WEB",
@@ -99,16 +100,16 @@ describe("HostingStack", () => {
     expect(ar).toContain("cd .. && npm ci && cd ar-app");  // commands share one shell
     expect(ar).toContain("npm run build\n");
     expect(ar).toContain("baseDirectory: dist");
-    const arena = buildSpecOf(t, "arcopilot-stage-arena");
+    const arena = buildSpecOf(synth("arena"), "arcopilot-arena-arena");
     expect(arena).toContain("appRoot: apps/arena");
     expect(arena).toContain("cd .. && npm ci && cd arena");
     expect(arena).toContain("npm run build:stage");
   });
 
   it("sets the monorepo root and the app's Supabase and agent settings as build variables", () => {
-    const t = synth("stage");
+    const t = synth("arena");
     t.hasResourceProperties("AWS::Amplify::App", {
-      Name: "arcopilot-stage-arena",
+      Name: "arcopilot-arena-arena",
       EnvironmentVariables: Match.arrayWith([
         { Name: "AMPLIFY_MONOREPO_APP_ROOT", Value: "apps/arena" },
         { Name: "VITE_SUPABASE_URL", Value: inputs.supabaseUrl },
@@ -127,7 +128,7 @@ describe("HostingStack", () => {
 
   it("stage: main auto-builds as the production branch", () => {
     const t = synth("stage");
-    t.resourceCountIs("AWS::Amplify::Branch", 2);
+    t.resourceCountIs("AWS::Amplify::Branch", 1);
     t.hasResourceProperties("AWS::Amplify::Branch", {
       BranchName: "main", EnableAutoBuild: true, Stage: "PRODUCTION",
     });
@@ -151,8 +152,8 @@ describe("HostingStack", () => {
   });
 
   it("outputs each app's URL", () => {
-    const outputs = synth("stage").findOutputs("*");
-    expect(Object.keys(outputs).sort()).toEqual(["ArAppUrl", "ArenaUrl"]);
+    expect(Object.keys(synth("stage").findOutputs("*"))).toEqual(["ArAppUrl"]);
+    expect(Object.keys(synth("arena").findOutputs("*"))).toEqual(["ArenaUrl"]);
   });
 
   it("puts no secret in the template: no secret key, no service role, no account id", () => {
