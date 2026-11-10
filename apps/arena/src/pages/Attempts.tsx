@@ -1,6 +1,7 @@
 // "Your attempts": the player's own agent activity (from the audit log), and the room's counts.
 // Refreshed whenever the tab is opened. Only the player's own calls appear here; the room is numbers only (P6).
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { timeAgo } from "@ar/shared/data/format.ts";
 import { loadAttempts, roomTotals, type Attempts as Mine, type Room } from "../lib/attempts.ts";
 import { sb } from "../supabase.ts";
@@ -65,6 +66,7 @@ export function Attempts({ active }: { active: boolean }) {
         <div className="room-flags"><dt>Flags captured</dt><dd data-k="flags_captured">{room.flags_captured}</dd></div>
       </dl>
       <p className="count">"Fooled" means a copilot tried something and the database refused it.</p>
+      <p className="count"><Link to="/leaderboard" data-testid="leaderboard-link">See the leaderboard</Link></p>
     </section>
   );
 }
