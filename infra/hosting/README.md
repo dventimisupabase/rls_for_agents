@@ -1,13 +1,17 @@
 # infra/hosting: Amplify Hosting for the front ends (D3)
 
-A CDK stack that hosts the static front ends on AWS Amplify Hosting, built from this repo: stage on every push to
-`main`, the arena on release. Decided in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md`
+A CDK stack that hosts the static front ends on AWS Amplify Hosting, built from this repo: the AR app on stage on
+every push to `main`, the arena on release. Decided in issue #5 and recorded as D3 in `docs/context-packs/00_SHARED_CONTEXT.md`
 section 8.
 
 | Environment | Stack | Branch | Apps | Supabase project |
 |---|---|---|---|---|
-| stage | `Hosting-arcopilot-stage` | `main` | `ar-app`, `arena` (built with `build:stage`) | stage |
-| arena (not deployed yet) | `Hosting-arcopilot-arena` | `arena` | `arena` (built with `build:stage` until the legal text arrives) | arena |
+| stage | `Hosting-arcopilot-stage` | `main` | `ar-app` | stage |
+| arena | `Hosting-arcopilot-arena` | `arena` | `arena` (built with `build:stage` until the legal text arrives) | arena |
+
+Stage used to host a copy of the arena as well. It had the same title as the public one and was easy to mistake for
+it, so it was removed on 2026-11-10. Try arena changes on the local stack (`scripts/e2e-apps.sh arena:...`) before
+`scripts/deploy-hosting.sh arena release`.
 
 Each front end is its own Amplify app, built from its folder in the `apps/` npm workspace on Node 24. The apps are
 static (`WEB`), so they need no IAM service role. There are no PR previews: the repo is public, so a preview
@@ -104,15 +108,13 @@ These settings live outside this stack:
   then `supabase functions deploy agent`; the endpoint stays the same across runtime redeploys). A call from the
   hosted app through the proxy to the runtime hasn't been run yet. The local dev agent accepts only the localhost
   origins.
-- **On stage, only team members can sign in to the arena.** Stage sends code emails (`config.toml`,
-  `supabase/templates`), but the built-in email sender delivers only to the org's team members, a few an hour. The
-  public arena signs in with GitHub instead (decided 2026-10-29): the arena environment builds with
-  `VITE_SIGNIN=github`.
+- **The arena signs in with GitHub.** The built-in email sender delivers only to the org's team members, a few an
+  hour, so the arena environment builds with `VITE_SIGNIN=github` (decided 2026-10-29).
 - **Arena auth is applied by hand.** `scripts/arena-auth.sh diff|push` sets the arena project's Site URL, redirect
   list and GitHub provider (from `config.toml` plus the arena's values; pushed 2026-10-29). Rerun it after changing
   `config.toml`'s auth settings: stage gets them from `supabase config push`, the arena only from this script. The
   GitHub OAuth App's callback URL is `https://<arena ref>.supabase.co/auth/v1/callback`.
-- **The arena's legal text is a placeholder.** Both environments build the arena in stage mode, which lets the
+- **The arena's legal text is a placeholder.** The arena environment builds it in stage mode, which lets the
   placeholder through the legal guard. Once the approved text is in `apps/arena/src/legal.ts` and
   `src/content/brief.ts`, switch the arena environment back to `build` in `lib/config.ts`.
 - **No custom domain.** The arena stays on its `amplifyapp.com` URL (decided 2026-10-29), so the QR code (P4) points
