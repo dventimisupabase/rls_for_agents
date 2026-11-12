@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { githubRedirectTo, oauthError, signInMethod } from "./signin.ts";
+import { GITHUB_2FA_HINT, githubRedirectTo, oauthError, signInMethod } from "./signin.ts";
 
 describe("sign-in method", () => {
   it("is GitHub only when the build says so; local and stage keep email codes", () => {
@@ -34,5 +34,15 @@ describe("GitHub sign-in error", () => {
   it("falls back to the code, and is null with no error", () => {
     expect(oauthError("?error=access_denied", "")).toBe("access_denied");
     expect(oauthError("?next=%2F", "")).toBeNull();
+  });
+});
+
+describe("GitHub two-factor hint", () => {
+  // A phone not signed in to GitHub gets GitHub's login and its GitHub Mobile 2FA step, which can 404
+  // (github.com/sessions/two-factor/mobile). The page says what to do about it.
+  it("says to sign in to GitHub first, or pick another two-factor method", () => {
+    expect(GITHUB_2FA_HINT).toMatch(/sign in to github\.com/i);
+    expect(GITHUB_2FA_HINT).toMatch(/another method/i);
+    expect(GITHUB_2FA_HINT).not.toMatch(/—/);
   });
 });

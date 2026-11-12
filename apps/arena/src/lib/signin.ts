@@ -17,3 +17,9 @@ export function oauthError(search: string, hash: string): string | null {
   }
   return null;
 }
+
+// Shown under the GitHub button. A phone that isn't signed in to GitHub goes through GitHub's login and its
+// GitHub Mobile two-factor step, which can 404 (github.com/sessions/two-factor/mobile) when the app hands back.
+export const GITHUB_2FA_HINT =
+  "Not signed in to GitHub on this phone? Sign in to github.com in this browser first. If GitHub's two-factor step " +
+  "shows a 404, go back, choose another method (like an authenticator code), then tap the button again.";

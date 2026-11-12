@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { safeNext } from "@ar/shared/auth/next.ts";
 import { CONSENT_TEXT } from "../legal.ts";
 import { isCode, normalizeCode } from "../lib/code.ts";
-import { githubRedirectTo, oauthError, signInMethod } from "../lib/signin.ts";
+import { GITHUB_2FA_HINT, githubRedirectTo, oauthError, signInMethod } from "../lib/signin.ts";
 import { sb } from "../supabase.ts";
 
 const METHOD = signInMethod(import.meta.env.VITE_SIGNIN);
@@ -43,6 +43,7 @@ function GitHubSignIn() {
       <p className="legal" data-testid="consent">{CONSENT_TEXT}</p>
       {error && <p className="form-error" role="alert">GitHub sign-in didn't finish: {error}. Try again.</p>}
       <button className="primary" disabled={busy} onClick={signIn}>Sign in with GitHub</button>
+      <p className="body hint" data-testid="github-2fa-hint">{GITHUB_2FA_HINT}</p>
     </main>
   );
 }
